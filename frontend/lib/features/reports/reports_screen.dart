@@ -2,11 +2,14 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/auth/auth_controller.dart';
+import '../../core/constants/permissions.dart';
 import '../../core/theme/app_theme.dart';
 import '../../shared/widgets/app_list_card.dart';
 import '../../shared/widgets/list_screen_shortcuts.dart';
 import '../../shared/widgets/report_pdf_export.dart';
 import '../../shared/widgets/skeleton_loader.dart';
+import 'customer_report_model.dart';
 import 'reports_provider.dart';
 
 class ReportsScreen extends ConsumerWidget {
@@ -14,6 +17,9 @@ class ReportsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final auth = ref.watch(authControllerProvider);
+    final canViewCustomer = auth.has(Permissions.reportsCustomerView);
+
     void refresh() {
       ref.invalidate(salesReportProvider);
       ref.invalidate(purchaseReportProvider);
@@ -21,12 +27,30 @@ class ReportsScreen extends ConsumerWidget {
       ref.invalidate(financeReportProvider);
       ref.invalidate(outstandingReportProvider);
       ref.invalidate(auditReportProvider);
+      if (canViewCustomer) ref.invalidate(customerReportProvider);
     }
+
+    final tabs = [
+      const Tab(text: 'Sales'),
+      const Tab(text: 'Purchase'),
+      const Tab(text: 'Low Stock'),
+      const Tab(text: 'Finance'),
+      if (canViewCustomer) const Tab(text: 'Customer'),
+      const Tab(text: 'Audit'),
+    ];
+    final tabViews = [
+      const _SalesReportTab(),
+      const _PurchaseReportTab(),
+      const _LowStockTab(),
+      const _FinanceReportTab(),
+      if (canViewCustomer) const _CustomerReportTab(),
+      const _AuditReportTab(),
+    ];
 
     return ListScreenShortcuts(
       onRefresh: refresh,
       child: DefaultTabController(
-        length: 5,
+        length: tabs.length,
         child: Scaffold(
           backgroundColor: AppPalette.surface,
           body: Column(
@@ -49,7 +73,7 @@ class ReportsScreen extends ConsumerWidget {
                       ],
                     ),
                     const SizedBox(height: 12),
-                    const TabBar(
+                    TabBar(
                       isScrollable: true,
                       tabAlignment: TabAlignment.start,
                       // Explicit colors, not the app's default TabBarTheme - that theme is tuned for
@@ -57,25 +81,13 @@ class ReportsScreen extends ConsumerWidget {
                       labelColor: AppPalette.primary,
                       unselectedLabelColor: AppPalette.textSecondary,
                       indicatorColor: AppPalette.primary,
-                      tabs: [
-                        Tab(text: 'Sales'),
-                        Tab(text: 'Purchase'),
-                        Tab(text: 'Low Stock'),
-                        Tab(text: 'Finance'),
-                        Tab(text: 'Audit'),
-                      ],
+                      tabs: tabs,
                     ),
                   ],
                 ),
               ),
-              const Expanded(
-                child: TabBarView(children: [
-                  _SalesReportTab(),
-                  _PurchaseReportTab(),
-                  _LowStockTab(),
-                  _FinanceReportTab(),
-                  _AuditReportTab(),
-                ]),
+              Expanded(
+                child: TabBarView(children: tabViews),
               ),
             ],
           ),
@@ -607,6 +619,225 @@ class _FinanceReportTab extends ConsumerWidget {
           error: (e, _) => Text('Failed: $e'),
         ),
       ],
+    );
+  }
+}
+
+class _CustomerReportTab extends ConsumerStatefulWidget {
+  const _CustomerReportTab();
+
+  @override
+  ConsumerState<_CustomerReportTab> createState() => _CustomerReportTabState();
+}
+
+class _CustomerReportTabState extends ConsumerState<_CustomerReportTab> {
+  DateTime? _from;
+  DateTime? _to;
+  final _customerIdController = TextEditingController();
+  String? _appliedCustomerId;
+
+  @override
+  void dispose() {
+    _customerIdController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pickDate({required bool isFrom}) async {
+    final initial = (isFrom ? _from : _to) ?? DateTime.now();
+    final picked = await showDatePicker(context: context, initialDate: initial, firstDate: DateTime(2000), lastDate: DateTime(2100));
+    if (picked == null) return;
+    setState(() {
+      if (isFrom) {
+        _from = picked;
+      } else {
+        _to = picked;
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final filter = CustomerReportFilter(from: _from, to: _to, customerId: _appliedCustomerId);
+    final rowsAsync = ref.watch(customerReportProvider(filter));
+
+    Widget dateChip(String label, DateTime? value, VoidCallback onTap) {
+      return OutlinedButton.icon(
+        onPressed: onTap,
+        icon: const Icon(Icons.calendar_today_outlined, size: 14),
+        label: Text(value == null ? label : '${value.year}-${value.month.toString().padLeft(2, '0')}-${value.day.toString().padLeft(2, '0')}'),
+      );
+    }
+
+    final filterBar = Wrap(
+      spacing: 12,
+      runSpacing: 12,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        dateChip('From', _from, () => _pickDate(isFrom: true)),
+        dateChip('To', _to, () => _pickDate(isFrom: false)),
+        SizedBox(
+          width: 220,
+          child: TextField(
+            controller: _customerIdController,
+            decoration: const InputDecoration(
+              isDense: true,
+              labelText: 'Customer ID (optional)',
+              border: OutlineInputBorder(),
+            ),
+            onSubmitted: (v) => setState(() => _appliedCustomerId = v.trim().isEmpty ? null : v.trim()),
+          ),
+        ),
+        OutlinedButton(
+          onPressed: () => setState(() => _appliedCustomerId = _customerIdController.text.trim().isEmpty ? null : _customerIdController.text.trim()),
+          child: const Text('Apply'),
+        ),
+        if (_from != null || _to != null || _appliedCustomerId != null)
+          TextButton(
+            onPressed: () => setState(() {
+              _from = null;
+              _to = null;
+              _appliedCustomerId = null;
+              _customerIdController.clear();
+            }),
+            child: const Text('Clear'),
+          ),
+      ],
+    );
+
+    return rowsAsync.when(
+      data: (rows) {
+        if (rows == null) return const Center(child: Text('Could not load report.'));
+
+        final totalSales = rows.fold<double>(0, (a, r) => a + r.totalSales);
+        final totalOutstanding = rows.fold<double>(0, (a, r) => a + r.totalOutstanding);
+        final totalPayments = rows.fold<double>(0, (a, r) => a + r.totalPayments);
+        final totalInvoices = rows.fold<int>(0, (a, r) => a + r.invoiceCount);
+
+        final summaryRows = rows
+            .map((r) => [
+                  r.customerName,
+                  '₹${r.totalSales.toStringAsFixed(2)}',
+                  '₹${r.totalOutstanding.toStringAsFixed(2)}',
+                  '₹${r.totalPayments.toStringAsFixed(2)}',
+                  '${r.invoiceCount}',
+                ])
+            .toList();
+
+        return _ReportPage(
+          title: 'Customer Report',
+          onExportPdf: () => exportReportPdf(
+            title: 'Customer Report',
+            stats: [
+              ('Total Sales', '₹${totalSales.toStringAsFixed(2)}'),
+              ('Total Outstanding', '₹${totalOutstanding.toStringAsFixed(2)}'),
+              ('Total Payments', '₹${totalPayments.toStringAsFixed(2)}'),
+              ('Invoices', '$totalInvoices'),
+            ],
+            sections: [
+              ReportPdfSection(
+                title: 'By Customer',
+                columns: const ['Customer', 'Sales', 'Outstanding', 'Payments', 'Invoices'],
+                rows: summaryRows,
+              ),
+            ],
+          ),
+          children: [
+            filterBar,
+            const SizedBox(height: 20),
+            _StatRow([
+              _Stat(icon: Icons.point_of_sale_outlined, label: 'Total Sales', value: '₹${totalSales.toStringAsFixed(2)}', color: AppPalette.success),
+              _Stat(icon: Icons.account_balance_wallet_outlined, label: 'Total Outstanding', value: '₹${totalOutstanding.toStringAsFixed(2)}', color: AppPalette.error),
+              _Stat(icon: Icons.payments_outlined, label: 'Total Payments', value: '₹${totalPayments.toStringAsFixed(2)}'),
+              _Stat(icon: Icons.receipt_long_outlined, label: 'Invoices', value: '$totalInvoices'),
+            ]),
+            const SizedBox(height: 20),
+            _TitledSection(
+              title: 'By Customer',
+              child: rows.isEmpty
+                  ? const Padding(padding: EdgeInsets.symmetric(vertical: 24), child: Text('No data.'))
+                  : Column(children: [for (final r in rows) _CustomerReportExpansionRow(row: r)]),
+            ),
+          ],
+        );
+      },
+      loading: () => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(padding: const EdgeInsets.all(24), child: filterBar),
+          const Expanded(child: Center(child: CircularProgressIndicator())),
+        ],
+      ),
+      error: (e, _) => Center(child: Text('Failed: $e')),
+    );
+  }
+}
+
+/// One customer's summary row, expandable to reveal the Products breakdown and the
+/// date-wise activity timeline the backend returns alongside it.
+class _CustomerReportExpansionRow extends StatelessWidget {
+  final CustomerReportRow row;
+  const _CustomerReportExpansionRow({required this.row});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: AppPalette.card,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppPalette.border),
+      ),
+      child: Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          title: Text(row.customerName, style: const TextStyle(fontWeight: FontWeight.w600)),
+          subtitle: Text('${row.invoiceCount} invoice(s)'),
+          trailing: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text('₹${row.totalSales.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold)),
+              Text('Outstanding ₹${row.totalOutstanding.toStringAsFixed(2)}', style: const TextStyle(fontSize: 11, color: AppPalette.textMuted)),
+            ],
+          ),
+          childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          children: [
+            _StatRow([
+              _Stat(icon: Icons.point_of_sale_outlined, label: 'Sales', value: '₹${row.totalSales.toStringAsFixed(2)}', color: AppPalette.success),
+              _Stat(icon: Icons.account_balance_wallet_outlined, label: 'Outstanding', value: '₹${row.totalOutstanding.toStringAsFixed(2)}', color: AppPalette.error),
+              _Stat(icon: Icons.payments_outlined, label: 'Payments', value: '₹${row.totalPayments.toStringAsFixed(2)}'),
+            ]),
+            const SizedBox(height: 16),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text('Products', style: Theme.of(context).textTheme.titleSmall),
+            ),
+            const SizedBox(height: 8),
+            _breakdownTable(
+              context,
+              const ['Item', 'Quantity', 'Amount'],
+              row.products.map((p) => [p.itemName, p.quantity.toStringAsFixed(2), '₹${p.amount.toStringAsFixed(2)}']),
+              emptyMessage: 'No products in this period.',
+            ),
+            const SizedBox(height: 16),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text('Date-wise Activity', style: Theme.of(context).textTheme.titleSmall),
+            ),
+            const SizedBox(height: 8),
+            _breakdownTable(
+              context,
+              const ['Date', 'Amount', 'Invoices'],
+              row.dateWiseActivity.map((a) => [
+                    '${a.date.year}-${a.date.month.toString().padLeft(2, '0')}-${a.date.day.toString().padLeft(2, '0')}',
+                    '₹${a.amount.toStringAsFixed(2)}',
+                    '${a.invoiceCount}',
+                  ]),
+              emptyMessage: 'No activity in this period.',
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

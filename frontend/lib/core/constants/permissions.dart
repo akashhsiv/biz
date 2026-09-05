@@ -33,6 +33,7 @@ class Permissions {
   static const reportsSalesView = 'reports.sales.view';
   static const reportsPurchaseView = 'reports.purchase.view';
   static const reportsFinanceView = 'reports.finance.view';
+  static const reportsCustomerView = 'reports.customer.view';
   static const reportsAllView = 'reports.all.view';
 
   static const staffView = 'staff.view';
