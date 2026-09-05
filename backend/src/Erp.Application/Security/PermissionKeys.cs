@@ -39,6 +39,7 @@ public static class PermissionKeys
     public const string ReportsSalesView = "reports.sales.view";
     public const string ReportsPurchaseView = "reports.purchase.view";
     public const string ReportsFinanceView = "reports.finance.view";
+    public const string ReportsCustomerView = "reports.customer.view";
     public const string ReportsAllView = "reports.all.view";
 
     public const string UsersManage = "users.manage";
@@ -87,6 +88,7 @@ public static class PermissionKeys
         (ReportsSalesView, "reports", "View sales reports (own/team)"),
         (ReportsPurchaseView, "reports", "View purchase reports (own/team)"),
         (ReportsFinanceView, "reports", "View finance reports"),
+        (ReportsCustomerView, "reports", "View customer reports (sales, outstanding, payments, activity)"),
         (ReportsAllView, "reports", "View all reports across the shop"),
 
         (UsersManage, "admin", "Create/edit users"),

@@ -22,6 +22,19 @@ public record CustomerOutstandingRow(Guid CustomerId, string CustomerName, decim
 
 public record AuditSummaryRow(string Action, int Count);
 
+public record CustomerReportProductRow(Guid ItemId, string ItemName, decimal Quantity, decimal Amount);
+public record CustomerReportActivityRow(DateTime Date, decimal Amount, int InvoiceCount);
+public record CustomerReportRow(
+    Guid CustomerId,
+    string CustomerName,
+    decimal TotalSales,
+    decimal TotalOutstanding,
+    decimal TotalPayments,
+    int InvoiceCount,
+    List<CustomerReportProductRow> Products,
+    List<CustomerReportActivityRow> DateWiseActivity);
+// TODO(commission-module): once a Commission entity/module exists, add per-customer commission totals here.
+
 [ApiController]
 [Route("api/reports")]
 public class ReportsController(ErpDbContext db) : ControllerBase
@@ -132,6 +145,81 @@ public class ReportsController(ErpDbContext db) : ControllerBase
         var rows = openProformas.GroupBy(p => p.CustomerId)
             .Select(g => new CustomerOutstandingRow(g.Key, customerNames.GetValueOrDefault(g.Key, "?"), g.Sum(p => p.OutstandingTotal), g.Count()))
             .OrderByDescending(r => r.OutstandingTotal).ToList();
+
+        return Ok(rows);
+    }
+
+    [HttpGet("customer")]
+    [RequirePermission(PermissionKeys.ReportsCustomerView)]
+    public async Task<ActionResult<List<CustomerReportRow>>> Customer(
+        [FromQuery] DateTime? from, [FromQuery] DateTime? to, [FromQuery] Guid? customerId,
+        [FromQuery] int page = 1, [FromQuery] int pageSize = 50, CancellationToken ct = default)
+    {
+        var (start, end) = Range(from, to);
+
+        var customersQuery = db.Customers.AsQueryable();
+        if (customerId is not null) customersQuery = customersQuery.Where(c => c.Id == customerId);
+
+        var customers = await customersQuery
+            .OrderBy(c => c.Name)
+            .Skip((Math.Max(page, 1) - 1) * pageSize)
+            .Take(pageSize)
+            .Select(c => new { c.Id, c.Name })
+            .ToListAsync(ct);
+
+        if (customers.Count == 0) return Ok(new List<CustomerReportRow>());
+
+        var customerIds = customers.Select(c => c.Id).ToHashSet();
+
+        // Sales invoices in range, for the selected customers.
+        var invoices = await db.SalesInvoices.Include(i => i.Lines)
+            .Where(i => i.Status == SalesInvoiceStatus.Active && i.CreatedAt >= start && i.CreatedAt < end
+                && customerIds.Contains(i.CustomerId))
+            .ToListAsync(ct);
+
+        // Outstanding: open proformas per customer (same shape as finance/outstanding), not date-range filtered
+        // since outstanding is a point-in-time balance rather than an activity-in-range figure.
+        var outstandingByCustomer = await db.ProformaInvoices
+            .Where(p => p.Status == ProformaStatus.Open && p.OutstandingTotal > 0 && customerIds.Contains(p.CustomerId))
+            .GroupBy(p => p.CustomerId)
+            .Select(g => new { CustomerId = g.Key, Total = g.Sum(p => p.OutstandingTotal) })
+            .ToDictionaryAsync(g => g.CustomerId, g => g.Total, ct);
+
+        // Payments received: Amount In transactions against the customer within the date range.
+        var paymentsByCustomer = await db.FinancialTransactions
+            .Where(t => t.TransactionType == FinancialTransactionType.AmountIn && t.CustomerId != null
+                && customerIds.Contains(t.CustomerId!.Value) && t.CreatedAt >= start && t.CreatedAt < end)
+            .GroupBy(t => t.CustomerId!.Value)
+            .Select(g => new { CustomerId = g.Key, Total = g.Sum(t => t.Direction == FinancialDirection.Credit ? t.Amount : -t.Amount) })
+            .ToDictionaryAsync(g => g.CustomerId, g => g.Total, ct);
+
+        var itemNames = await db.Items.ToDictionaryAsync(i => i.Id, i => i.Name, ct);
+
+        var invoicesByCustomer = invoices.GroupBy(i => i.CustomerId).ToDictionary(g => g.Key, g => g.ToList());
+
+        var rows = customers.Select(c =>
+        {
+            var customerInvoices = invoicesByCustomer.GetValueOrDefault(c.Id, []);
+
+            var products = customerInvoices.SelectMany(i => i.Lines).Where(l => l.ItemId is not null)
+                .GroupBy(l => l.ItemId!.Value)
+                .Select(g => new CustomerReportProductRow(g.Key, itemNames.GetValueOrDefault(g.Key, "?"), g.Sum(l => l.Quantity), g.Sum(l => l.LineTotal)))
+                .OrderByDescending(r => r.Amount).ToList();
+
+            var dateWiseActivity = customerInvoices.GroupBy(i => i.CreatedAt.Date)
+                .Select(g => new CustomerReportActivityRow(g.Key, g.Sum(i => i.GrandTotal), g.Count()))
+                .OrderBy(r => r.Date).ToList();
+
+            return new CustomerReportRow(
+                c.Id,
+                c.Name,
+                customerInvoices.Sum(i => i.GrandTotal),
+                outstandingByCustomer.GetValueOrDefault(c.Id, 0m),
+                paymentsByCustomer.GetValueOrDefault(c.Id, 0m),
+                customerInvoices.Count,
+                products,
+                dateWiseActivity);
+        }).ToList();
 
         return Ok(rows);
     }
