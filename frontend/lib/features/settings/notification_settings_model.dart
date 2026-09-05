@@ -7,6 +7,7 @@ class NotificationSettings {
   final bool purchaseOverdueMobile;
   final bool customerOutstandingWhatsapp;
   final bool customerOutstandingMobile;
+  final int dueSoonDays;
 
   NotificationSettings({
     required this.lowStockWhatsapp,
@@ -17,6 +18,7 @@ class NotificationSettings {
     required this.purchaseOverdueMobile,
     required this.customerOutstandingWhatsapp,
     required this.customerOutstandingMobile,
+    required this.dueSoonDays,
   });
 
   factory NotificationSettings.fromJson(Map<String, dynamic> json) => NotificationSettings(
@@ -28,6 +30,7 @@ class NotificationSettings {
         purchaseOverdueMobile: json['purchaseOverdueMobile'] as bool,
         customerOutstandingWhatsapp: json['customerOutstandingWhatsapp'] as bool,
         customerOutstandingMobile: json['customerOutstandingMobile'] as bool,
+        dueSoonDays: json['dueSoonDays'] as int,
       );
 
   Map<String, dynamic> toJson() => {
@@ -39,6 +42,7 @@ class NotificationSettings {
         'purchaseOverdueMobile': purchaseOverdueMobile,
         'customerOutstandingWhatsapp': customerOutstandingWhatsapp,
         'customerOutstandingMobile': customerOutstandingMobile,
+        'dueSoonDays': dueSoonDays,
       };
 
   NotificationSettings copyWith({
@@ -50,6 +54,7 @@ class NotificationSettings {
     bool? purchaseOverdueMobile,
     bool? customerOutstandingWhatsapp,
     bool? customerOutstandingMobile,
+    int? dueSoonDays,
   }) =>
       NotificationSettings(
         lowStockWhatsapp: lowStockWhatsapp ?? this.lowStockWhatsapp,
@@ -60,5 +65,6 @@ class NotificationSettings {
         purchaseOverdueMobile: purchaseOverdueMobile ?? this.purchaseOverdueMobile,
         customerOutstandingWhatsapp: customerOutstandingWhatsapp ?? this.customerOutstandingWhatsapp,
         customerOutstandingMobile: customerOutstandingMobile ?? this.customerOutstandingMobile,
+        dueSoonDays: dueSoonDays ?? this.dueSoonDays,
       );
 }

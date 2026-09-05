@@ -12,13 +12,15 @@ public record NotificationSettingsDto(
     bool LowStockWhatsapp, bool LowStockMobile,
     bool PurchaseDueWhatsapp, bool PurchaseDueMobile,
     bool PurchaseOverdueWhatsapp, bool PurchaseOverdueMobile,
-    bool CustomerOutstandingWhatsapp, bool CustomerOutstandingMobile);
+    bool CustomerOutstandingWhatsapp, bool CustomerOutstandingMobile,
+    int DueSoonDays);
 
 public record UpdateNotificationSettingsRequest(
     bool LowStockWhatsapp, bool LowStockMobile,
     bool PurchaseDueWhatsapp, bool PurchaseDueMobile,
     bool PurchaseOverdueWhatsapp, bool PurchaseOverdueMobile,
-    bool CustomerOutstandingWhatsapp, bool CustomerOutstandingMobile);
+    bool CustomerOutstandingWhatsapp, bool CustomerOutstandingMobile,
+    int DueSoonDays);
 
 /// <summary>Per-shop notification channel matrix (Biz_Product_Requirements.md §23) — mirrors
 /// CompanySettingsController's get-or-create-singleton pattern, except this singleton is per-shop
@@ -39,6 +41,9 @@ public class NotificationSettingsController(ErpDbContext db, ICurrentUserService
     [RequirePermission(PermissionKeys.NotificationSettingsManage)]
     public async Task<ActionResult<NotificationSettingsDto>> Update(UpdateNotificationSettingsRequest request, CancellationToken ct)
     {
+        if (request.DueSoonDays is <= 0 or > 90)
+            throw new ValidationAppException("DueSoonDays must be between 1 and 90.");
+
         var settings = await GetOrCreateAsync(ct);
 
         settings.LowStockWhatsapp = request.LowStockWhatsapp;
@@ -49,6 +54,7 @@ public class NotificationSettingsController(ErpDbContext db, ICurrentUserService
         settings.PurchaseOverdueMobile = request.PurchaseOverdueMobile;
         settings.CustomerOutstandingWhatsapp = request.CustomerOutstandingWhatsapp;
         settings.CustomerOutstandingMobile = request.CustomerOutstandingMobile;
+        settings.DueSoonDays = request.DueSoonDays;
 
         await db.SaveChangesAsync(ct);
         return Ok(ToDto(settings));
@@ -72,5 +78,6 @@ public class NotificationSettingsController(ErpDbContext db, ICurrentUserService
         s.LowStockWhatsapp, s.LowStockMobile,
         s.PurchaseDueWhatsapp, s.PurchaseDueMobile,
         s.PurchaseOverdueWhatsapp, s.PurchaseOverdueMobile,
-        s.CustomerOutstandingWhatsapp, s.CustomerOutstandingMobile);
+        s.CustomerOutstandingWhatsapp, s.CustomerOutstandingMobile,
+        s.DueSoonDays);
 }

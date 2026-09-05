@@ -29,4 +29,10 @@ public class ShopNotificationSettings : BaseEntity, IShopScoped
 
     public bool SalesPaymentOverdueWhatsapp { get; set; } = true;
     public bool SalesPaymentOverdueMobile { get; set; } = true;
+
+    /// <summary>Number of days before a document's due date that the PurchaseDue/SalesPaymentDue
+    /// sweep in NotificationCheckWorker raises a "due soon" event. Runtime-configurable per shop via
+    /// NotificationSettingsController rather than the Notifications:DueSoonDays config fallback, so an
+    /// admin can tune it without a redeploy.</summary>
+    public int DueSoonDays { get; set; } = 3;
 }

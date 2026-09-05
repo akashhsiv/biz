@@ -94,27 +94,36 @@ public class NotificationCheckWorker(IServiceScopeFactory scopeFactory, IConfigu
 
         if (overdue.Count > 0) await db.SaveChangesAsync(ct);
 
-        await RunPurchaseDueSweepAsync(db, notificationEvents, now, ct);
-        await RunSalesPaymentSweepAsync(db, notificationEvents, now, ct);
+        var dueSoonDaysByShop = await db.ShopNotificationSettings
+            .Select(s => new { s.ShopId, s.DueSoonDays })
+            .ToDictionaryAsync(s => s.ShopId, s => s.DueSoonDays, ct);
+        var defaultDueSoonDays = configuration.GetValue("Notifications:DueSoonDays", 3);
+
+        await RunPurchaseDueSweepAsync(db, notificationEvents, now, dueSoonDaysByShop, defaultDueSoonDays, ct);
+        await RunSalesPaymentSweepAsync(db, notificationEvents, now, dueSoonDaysByShop, defaultDueSoonDays, ct);
     }
 
     /// <summary>PurchaseDue: PurchaseOrders whose DueDate falls within the next N days (not yet passed —
     /// once passed it's the PurchaseOverdue sweep above's job) with an outstanding balance still owed.
-    /// Same 24h duplicate-prevention pattern as PurchaseOverdue.</summary>
-    private async Task RunPurchaseDueSweepAsync(ErpDbContext db, INotificationEventService notificationEvents, DateTime now, CancellationToken ct)
+    /// N comes from the PO's own shop's ShopNotificationSettings.DueSoonDays (runtime-configurable by a
+    /// shop admin), falling back to the static Notifications:DueSoonDays config value if that shop has
+    /// no settings row yet. Same 24h duplicate-prevention pattern as PurchaseOverdue.</summary>
+    private async Task RunPurchaseDueSweepAsync(ErpDbContext db, INotificationEventService notificationEvents, DateTime now, IReadOnlyDictionary<Guid, int> dueSoonDaysByShop, int defaultDueSoonDays, CancellationToken ct)
     {
-        var dueSoonDays = configuration.GetValue("Notifications:DueSoonDays", 3);
-        var horizon = now.AddDays(dueSoonDays);
+        var maxHorizon = now.AddDays(dueSoonDaysByShop.Count > 0 ? Math.Max(dueSoonDaysByShop.Values.Max(), defaultDueSoonDays) : defaultDueSoonDays);
 
         var dueSoon = await db.PurchaseOrders
             .Include(po => po.Supplier)
             .Include(po => po.Payments)
-            .Where(po => po.DueDate != null && po.DueDate >= now && po.DueDate <= horizon && po.Status != PurchaseOrderStatus.Cancelled)
+            .Where(po => po.DueDate != null && po.DueDate >= now && po.DueDate <= maxHorizon && po.Status != PurchaseOrderStatus.Cancelled)
             .ToListAsync(ct);
 
         var raised = 0;
         foreach (var po in dueSoon)
         {
+            var dueSoonDays = dueSoonDaysByShop.GetValueOrDefault(po.ShopId, defaultDueSoonDays);
+            if (po.DueDate > now.AddDays(dueSoonDays)) continue;
+
             var paid = po.Payments.Where(p => p.Status == PurchasePaymentStatus.Completed).Sum(p => p.Amount);
             var outstanding = po.GrandTotal - paid;
             if (outstanding <= 0) continue;
@@ -141,22 +150,27 @@ public class NotificationCheckWorker(IServiceScopeFactory scopeFactory, IConfigu
     }
 
     /// <summary>SalesPaymentDue (DueDate within the next N days, not yet passed) and SalesPaymentOverdue
-    /// (DueDate already passed), both gated on OutstandingTotal > 0. Same 24h duplicate-prevention
-    /// pattern as the PurchaseOverdue sweep above.</summary>
-    private async Task RunSalesPaymentSweepAsync(ErpDbContext db, INotificationEventService notificationEvents, DateTime now, CancellationToken ct)
+    /// (DueDate already passed), both gated on OutstandingTotal > 0. N comes from the invoice's own
+    /// shop's ShopNotificationSettings.DueSoonDays, same fallback rule as the purchase sweep above.
+    /// Same 24h duplicate-prevention pattern as the PurchaseOverdue sweep above.</summary>
+    private async Task RunSalesPaymentSweepAsync(ErpDbContext db, INotificationEventService notificationEvents, DateTime now, IReadOnlyDictionary<Guid, int> dueSoonDaysByShop, int defaultDueSoonDays, CancellationToken ct)
     {
-        var dueSoonDays = configuration.GetValue("Notifications:DueSoonDays", 3);
-        var horizon = now.AddDays(dueSoonDays);
+        var maxHorizon = now.AddDays(dueSoonDaysByShop.Count > 0 ? Math.Max(dueSoonDaysByShop.Values.Max(), defaultDueSoonDays) : defaultDueSoonDays);
 
         var candidates = await db.SalesInvoices
             .Include(i => i.Customer)
-            .Where(i => i.DueDate != null && i.OutstandingTotal > 0 && i.Status != SalesInvoiceStatus.Cancelled && i.DueDate <= horizon)
+            .Where(i => i.DueDate != null && i.OutstandingTotal > 0 && i.Status != SalesInvoiceStatus.Cancelled && i.DueDate <= maxHorizon)
             .ToListAsync(ct);
 
         var raised = 0;
         foreach (var invoice in candidates)
         {
             var isOverdue = invoice.DueDate!.Value < now;
+            if (!isOverdue)
+            {
+                var dueSoonDays = dueSoonDaysByShop.GetValueOrDefault(invoice.ShopId, defaultDueSoonDays);
+                if (invoice.DueDate > now.AddDays(dueSoonDays)) continue;
+            }
             var eventType = isOverdue ? NotificationEventType.SalesPaymentOverdue : NotificationEventType.SalesPaymentDue;
 
             var alreadyRaisedRecently = await db.NotificationEvents.AnyAsync(e =>

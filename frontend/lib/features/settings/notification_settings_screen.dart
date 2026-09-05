@@ -30,16 +30,32 @@ class _NotificationSettingsScreenState extends ConsumerState<NotificationSetting
   String? _error;
 
   NotificationSettings? _current;
+  final _dueSoonDaysController = TextEditingController();
 
   void _populate(NotificationSettings s) {
     if (_loaded) return;
     _current = s;
+    _dueSoonDaysController.text = s.dueSoonDays.toString();
     _loaded = true;
+  }
+
+  @override
+  void dispose() {
+    _dueSoonDaysController.dispose();
+    super.dispose();
   }
 
   Future<void> _save() async {
     final current = _current;
     if (current == null) return;
+
+    final dueSoonDays = int.tryParse(_dueSoonDaysController.text.trim());
+    if (dueSoonDays == null || dueSoonDays <= 0 || dueSoonDays > 90) {
+      setState(() => _error = 'Days before due date must be between 1 and 90.');
+      return;
+    }
+    _current = current.copyWith(dueSoonDays: dueSoonDays);
+    final toSave = _current!;
 
     setState(() {
       _saving = true;
@@ -50,7 +66,7 @@ class _NotificationSettingsScreenState extends ConsumerState<NotificationSetting
     final result = await api.put<void>(
       '/api/notification-settings',
       (_) {},
-      body: current.toJson(),
+      body: toSave.toJson(),
     );
 
     if (!mounted) return;
@@ -130,6 +146,17 @@ class _NotificationSettingsScreenState extends ConsumerState<NotificationSetting
                     const PageHeader(
                       title: 'Notification Settings',
                       subtitle: 'Choose which channels each event alerts you on',
+                    ),
+                    const SizedBox(height: 20),
+                    TextField(
+                      controller: _dueSoonDaysController,
+                      enabled: canManage,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        labelText: 'Alert this many days before due date',
+                        helperText: 'Applies to Purchase Due / Sales Payment Due alerts. 1-90 days.',
+                        border: OutlineInputBorder(),
+                      ),
                     ),
                     const SizedBox(height: 20),
                     Row(
