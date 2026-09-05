@@ -11,6 +11,7 @@ import 'features/auth/login_screen.dart';
 import 'features/connection/connection_controller.dart';
 import 'features/connection/connection_state.dart';
 import 'features/connection/connection_screen.dart';
+import 'features/commission/commission_screen.dart';
 import 'features/customers/customers_screen.dart';
 import 'features/dashboard/dashboard_screen.dart';
 import 'features/error_log/error_log_screen.dart';
@@ -137,6 +138,12 @@ class ErpApp extends ConsumerWidget {
           icon: Icons.badge_outlined,
           requiredPermission: Permissions.staffView,
           builder: (_) => const StaffScreen(),
+        ),
+        NavItem(
+          label: 'Commission',
+          icon: Icons.percent_outlined,
+          requiredPermission: Permissions.commissionView,
+          builder: (_) => const CommissionScreen(),
         ),
         NavItem(
           label: 'Expenses',

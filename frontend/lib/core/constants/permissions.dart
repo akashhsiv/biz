@@ -41,6 +41,9 @@ class Permissions {
   static const staffSalaryView = 'staff.salary.view';
   static const staffSalaryPay = 'staff.salary.pay';
 
+  static const commissionView = 'commission.view';
+  static const commissionManage = 'commission.manage';
+
   static const usersManage = 'users.manage';
   static const rolesManage = 'roles.manage';
   static const auditLogsView = 'audit_logs.view';
