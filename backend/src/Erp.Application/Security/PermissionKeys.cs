@@ -50,6 +50,9 @@ public static class PermissionKeys
     public const string HostStatusView = "host.status.view";
     public const string CompanySettingsManage = "company_settings.manage";
 
+    public const string CommissionView = "commission.view";
+    public const string CommissionManage = "commission.manage";
+
     public static readonly (string Key, string Module, string Description)[] Catalog =
     [
         (CustomersView, "customers", "View customer master"),
@@ -98,5 +101,8 @@ public static class PermissionKeys
         (BackupManage, "admin", "Trigger and view database backups"),
         (HostStatusView, "admin", "View Host connection/infrastructure status"),
         (CompanySettingsManage, "admin", "Edit shop name/logo/GST/bank details"),
+
+        (CommissionView, "commission", "View customer commission rates and commission entries"),
+        (CommissionManage, "commission", "Create/edit customer commission rates; record/cancel commission payments"),
     ];
 }

@@ -178,3 +178,15 @@ public enum SalaryPaymentStatus
     PartiallyPaid,
     Paid
 }
+
+/// <summary>Lifecycle status for a Commission/CommissionEntry (see Erp.Domain.Commission). The exact
+/// business meaning of "commission" is unresolved pending sign-off; this status only tracks the
+/// entry's payment/lifecycle state, independent of that decision.</summary>
+public enum CommissionEntryStatus
+{
+    Pending,
+    PartiallyPaid,
+    Paid,
+    Cancelled,
+    Adjusted
+}

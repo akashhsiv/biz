@@ -34,6 +34,7 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IDocumentNumberService, DocumentNumberService>();
 builder.Services.AddScoped<Erp.Application.Stock.IStockService, StockService>();
 builder.Services.AddScoped<Erp.Application.Finance.IFinanceLedgerService, FinanceLedgerService>();
+builder.Services.AddScoped<Erp.Application.Commission.ICommissionCalculationService, Erp.Infrastructure.Services.CommissionCalculationService>();
 builder.Services.AddSingleton<Erp.Application.Documents.IPdfRenderer, Erp.Infrastructure.Documents.PuppeteerPdfRenderer>();
 builder.Services.AddScoped<Erp.Application.Documents.IDocumentPdfService, Erp.Infrastructure.Documents.DocumentPdfService>();
 builder.Services.AddScoped<Erp.Application.Backup.IBackupService, Erp.Infrastructure.Backup.PgDumpBackupService>();

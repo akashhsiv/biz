@@ -33,7 +33,8 @@ public class ProformasController(
     IStockService stock,
     IDocumentNumberService documentNumbers,
     IIdempotencyService idempotency,
-    IDocumentPdfService pdfService) : ControllerBase
+    IDocumentPdfService pdfService,
+    Erp.Application.Commission.ICommissionCalculationService commission) : ControllerBase
 {
     [HttpGet("{id:guid}/pdf")]
     [RequirePermission(PermissionKeys.ProformasManage)]
@@ -164,6 +165,9 @@ public class ProformasController(
 
         db.SalesInvoices.Add(invoice);
         proforma.Status = ProformaStatus.Converted;
+
+        // Provisional commission trigger — isolated from invoice logic, see CommissionCalculationService.
+        await commission.CalculateForInvoiceAsync(invoice, ct);
 
         // Re-point the now-Converted proforma's active deposit allocations at the new invoice so the
         // audit trail follows the money to its final document without creating a second allocation.

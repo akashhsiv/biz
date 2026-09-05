@@ -2,6 +2,7 @@ using System.Linq.Expressions;
 using System.Reflection;
 using Erp.Application.Common;
 using Erp.Domain.Audit;
+using Erp.Domain.Commission;
 using Erp.Domain.Common;
 using Erp.Domain.Customers;
 using Erp.Domain.Finance;
@@ -73,6 +74,10 @@ public class ErpDbContext(DbContextOptions<ErpDbContext> options, ICurrentUserSe
     public DbSet<Erp.Domain.Staff.Staff> Staff => Set<Erp.Domain.Staff.Staff>();
     public DbSet<SalaryPayment> SalaryPayments => Set<SalaryPayment>();
     public DbSet<SalaryPaymentEntry> SalaryPaymentEntries => Set<SalaryPaymentEntry>();
+
+    // Commission (provisional pending business sign-off — see Erp.Domain.Commission)
+    public DbSet<CustomerProductRate> CustomerProductRates => Set<CustomerProductRate>();
+    public DbSet<CommissionEntry> CommissionEntries => Set<CommissionEntry>();
 
     // Audit / WhatsApp / System
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();

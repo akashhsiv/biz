@@ -39,7 +39,8 @@ public class QuotationsController(
     IDocumentNumberService documentNumbers,
     IIdempotencyService idempotency,
     ICurrentUserService currentUser,
-    IDocumentPdfService pdfService) : ControllerBase
+    IDocumentPdfService pdfService,
+    Erp.Application.Commission.ICommissionCalculationService commission) : ControllerBase
 {
     [HttpGet("{id:guid}/pdf")]
     [RequirePermission(PermissionKeys.QuotationsManage)]
@@ -246,6 +247,9 @@ public class QuotationsController(
 
         await DeductStockForLinesAsync(quotation.Lines, DocumentReferenceType.SalesInvoice, invoice.Id, ct);
         await ledger.AllocateDepositAsync(quotation.CustomerId, DepositAllocationDocumentType.SalesInvoice, invoice.Id, quotation.GrandTotal, ct);
+
+        // Provisional commission trigger — isolated from invoice logic, see CommissionCalculationService.
+        await commission.CalculateForInvoiceAsync(invoice, ct);
 
         await audit.LogAsync("sales_invoice.created", nameof(SalesInvoice), invoice.Id, newValue: new { invoice.InvoiceNumber, invoice.GrandTotal }, ct: ct);
 
