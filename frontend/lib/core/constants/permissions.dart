@@ -51,4 +51,7 @@ class Permissions {
   static const backupManage = 'backup.manage';
   static const hostStatusView = 'host.status.view';
   static const companySettingsManage = 'company_settings.manage';
+
+  static const notificationsSettingsView = 'notifications.settings.view';
+  static const notificationsSettingsManage = 'notifications.settings.manage';
 }

@@ -25,6 +25,7 @@ import 'features/quotations/quotations_screen.dart';
 import 'features/reports/reports_screen.dart';
 import 'features/returns/sales_returns_screen.dart';
 import 'features/settings/company_settings_screen.dart';
+import 'features/settings/notification_settings_screen.dart';
 import 'features/settings/shop_configuration_screen.dart';
 import 'features/shops/shop_gate.dart';
 import 'features/staff/staff_screen.dart';
@@ -181,6 +182,12 @@ class ErpApp extends ConsumerWidget {
           icon: Icons.settings_outlined,
           requiredPermission: Permissions.companySettingsManage,
           builder: (_) => const ShopConfigurationScreen(),
+        ),
+        NavItem(
+          label: 'Notification Settings',
+          icon: Icons.notifications_outlined,
+          requiredPermission: Permissions.notificationsSettingsView,
+          builder: (_) => const NotificationSettingsScreen(),
         ),
         NavItem(
           label: 'Error Log',
