@@ -41,6 +41,7 @@ public class ItemConfiguration : IEntityTypeConfiguration<Item>
         b.Property(x => x.SellingPrice).HasPrecision(18, 2);
         b.Property(x => x.TaxRatePercent).HasPrecision(5, 2);
         b.Property(x => x.HsnCode).HasMaxLength(20);
+        b.Property(x => x.MinimumStock).HasPrecision(18, 3);
 
         b.HasIndex(x => new { x.ShopId, x.Sku }).IsUnique();
         b.HasIndex(x => x.Name);

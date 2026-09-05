@@ -1,4 +1,5 @@
 using Erp.Application.Common;
+using Erp.Application.Notifications;
 using Erp.Application.Stock;
 using Erp.Domain.Common;
 using Erp.Domain.Items;
@@ -7,7 +8,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Erp.Infrastructure.Services;
 
-public class StockService(ErpDbContext db, ICurrentUserService currentUser) : IStockService
+public class StockService(ErpDbContext db, ICurrentUserService currentUser, INotificationEventService notificationEvents) : IStockService
 {
     public async Task DecrementAsync(Guid itemId, decimal quantity, DocumentReferenceType referenceType, Guid referenceId, string? reason = null, List<Guid>? serialIds = null, CancellationToken ct = default)
     {
@@ -28,6 +29,27 @@ public class StockService(ErpDbContext db, ICurrentUserService currentUser) : IS
         {
             await DecrementBalanceOnlyAsync(itemId, quantity, referenceType, referenceId, StockMovementType.Sale, reason, ct);
         }
+
+        // LOW_STOCK notification hook (Biz_Product_Requirements.md §16): business logic here only
+        // raises the event via INotificationEventService — it has no idea whether/how that turns into
+        // a WhatsApp message or a push notification. NotificationDispatcher owns that decision.
+        await CheckLowStockAsync(item, ct);
+    }
+
+    private async Task CheckLowStockAsync(Item item, CancellationToken ct)
+    {
+        if (item.MinimumStock is not { } minimum) return;
+
+        var current = await db.StockBalances.AsNoTracking().Where(b => b.ItemId == item.Id).Select(b => b.QuantityOnHand).FirstOrDefaultAsync(ct);
+        if (current > minimum) return;
+
+        await notificationEvents.CreateEventAsync(item.ShopId, NotificationEventType.LowStock, new
+        {
+            itemId = item.Id,
+            itemName = item.Name,
+            currentStock = current,
+            minimumStock = minimum,
+        }, ct: ct);
     }
 
     private async Task DecrementSerialTrackedAsync(Guid itemId, decimal quantity, DocumentReferenceType referenceType, Guid referenceId, string? reason, List<Guid>? serialIds, CancellationToken ct)

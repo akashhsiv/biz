@@ -8,6 +8,7 @@ using Erp.Domain.Customers;
 using Erp.Domain.Finance;
 using Erp.Domain.Identity;
 using Erp.Domain.Items;
+using Erp.Domain.Notifications;
 using Erp.Domain.Purchases;
 using Erp.Domain.Sales;
 using Erp.Domain.Shops;
@@ -86,6 +87,11 @@ public class ErpDbContext(DbContextOptions<ErpDbContext> options, ICurrentUserSe
     public DbSet<DocumentSequence> DocumentSequences => Set<DocumentSequence>();
     public DbSet<CompanySettings> CompanySettings => Set<CompanySettings>();
     public DbSet<BackupHistory> BackupHistories => Set<BackupHistory>();
+
+    // Notification engine
+    public DbSet<NotificationEvent> NotificationEvents => Set<NotificationEvent>();
+    public DbSet<ShopNotificationSettings> ShopNotificationSettings => Set<ShopNotificationSettings>();
+    public DbSet<MobilePushOutboxItem> MobilePushOutboxItems => Set<MobilePushOutboxItem>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

@@ -16,6 +16,12 @@ public class PurchaseOrder : BaseEntity, IShopScoped
 
     public PurchaseOrderStatus Status { get; set; } = PurchaseOrderStatus.Draft;
 
+    /// <summary>Optional payment due date, used by NotificationCheckWorker's daily sweep to raise a
+    /// PURCHASE_OVERDUE event once this date has passed and an outstanding balance remains. Did not
+    /// exist before the notification engine — null for POs created before this field was added, which
+    /// simply never trigger the overdue check.</summary>
+    public DateTime? DueDate { get; set; }
+
     /// <summary>Independent from Status — driven by PurchasePayment completion, not by goods-received completeness.</summary>
     public PurchasePaymentStatus PaymentStatus { get; set; } = PurchasePaymentStatus.Processing;
 

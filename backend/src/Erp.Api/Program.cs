@@ -40,6 +40,13 @@ builder.Services.AddScoped<Erp.Application.Documents.IDocumentPdfService, Erp.In
 builder.Services.AddScoped<Erp.Application.Backup.IBackupService, Erp.Infrastructure.Backup.PgDumpBackupService>();
 builder.Services.AddHostedService<Erp.Infrastructure.Backup.DailyBackupWorker>();
 
+// Generic notification engine (Biz_Product_Requirements.md §19/§23/§24) — business logic only ever
+// depends on INotificationEventService; NotificationDispatcher/NotificationCheckWorker are the only
+// pieces that know WhatsApp/Mobile channels exist.
+builder.Services.AddScoped<Erp.Application.Notifications.INotificationEventService, Erp.Infrastructure.Services.NotificationEventService>();
+builder.Services.AddScoped<Erp.Infrastructure.Services.NotificationDispatcher>();
+builder.Services.AddHostedService<Erp.Infrastructure.Notifications.NotificationCheckWorker>();
+
 builder.Services.AddHttpClient();
 builder.Services.AddSingleton<Erp.Infrastructure.Whatsapp.WhatsappBridgeLocator>();
 // Singleton, not Scoped: it's injected directly into WhatsappOutboxWorker (a singleton hosted

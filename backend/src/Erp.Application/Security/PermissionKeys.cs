@@ -53,6 +53,9 @@ public static class PermissionKeys
     public const string CommissionView = "commission.view";
     public const string CommissionManage = "commission.manage";
 
+    public const string NotificationSettingsView = "notifications.settings.view";
+    public const string NotificationSettingsManage = "notifications.settings.manage";
+
     public static readonly (string Key, string Module, string Description)[] Catalog =
     [
         (CustomersView, "customers", "View customer master"),
@@ -104,5 +107,8 @@ public static class PermissionKeys
 
         (CommissionView, "commission", "View customer commission rates and commission entries"),
         (CommissionManage, "commission", "Create/edit customer commission rates; record/cancel commission payments"),
+
+        (NotificationSettingsView, "notifications", "View notification channel settings (Low Stock/Purchase Due/Purchase Overdue/Customer Outstanding x WhatsApp/Mobile)"),
+        (NotificationSettingsManage, "notifications", "Edit notification channel settings"),
     ];
 }

@@ -30,7 +30,8 @@ public enum DocumentReferenceType
     PurchaseReceipt,
     SalesReturn,
     ManualAdjustment,
-    Expense
+    Expense,
+    PurchaseOrder
 }
 
 public enum FinancialTransactionType
@@ -189,4 +190,34 @@ public enum CommissionEntryStatus
     Paid,
     Cancelled,
     Adjusted
+}
+
+/// <summary>Generic notification engine (see Erp.Domain.Notifications, ARCHITECTURE §19/§23/§24 in
+/// Biz_Product_Requirements.md). Business logic only creates events of these types — it never knows
+/// about WhatsApp/Baileys or push delivery. PurchaseDue and CustomerOutstanding are recognized event
+/// types (and have settings flags) but nothing currently raises them — only LowStock and
+/// PurchaseOverdue are wired to a trigger today; the enum stays extensible for the others.</summary>
+public enum NotificationEventType
+{
+    LowStock,
+    PurchaseDue,
+    PurchaseOverdue,
+    CustomerOutstanding
+}
+
+public enum NotificationEventStatus
+{
+    Pending,
+    Dispatched,
+    Failed
+}
+
+/// <summary>Delivery status for the mobile-push placeholder outbox — see MobilePushOutboxItem.
+/// No provider (Firebase/APNs) is wired up yet, so every row created today stays Pending forever;
+/// this exists so the data model doesn't need reshaping once a provider is chosen.</summary>
+public enum MobilePushOutboxStatus
+{
+    Pending,
+    Sent,
+    Failed
 }

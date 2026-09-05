@@ -11,11 +11,11 @@ namespace Erp.Api.Controllers;
 
 public record ItemDto(
     Guid Id, string Sku, string Name, Guid? CategoryId, string Unit, ItemKind ItemKind,
-    decimal PurchasePrice, decimal SellingPrice, decimal TaxRatePercent, string? HsnCode, bool IsBatchTracked, bool IsSerialTracked, bool IsActive, decimal StockOnHand);
+    decimal PurchasePrice, decimal SellingPrice, decimal TaxRatePercent, string? HsnCode, bool IsBatchTracked, bool IsSerialTracked, bool IsActive, decimal StockOnHand, decimal? MinimumStock);
 
 public record UpsertItemRequest(
     string Sku, string Name, Guid? CategoryId, string Unit, ItemKind ItemKind,
-    decimal PurchasePrice, decimal SellingPrice, decimal TaxRatePercent, string? HsnCode, bool IsBatchTracked, bool IsSerialTracked);
+    decimal PurchasePrice, decimal SellingPrice, decimal TaxRatePercent, string? HsnCode, bool IsBatchTracked, bool IsSerialTracked, decimal? MinimumStock = null);
 
 public record AvailableSerialDto(Guid Id, string SerialNumber, DateTime ReceivedDate);
 
@@ -83,6 +83,7 @@ public class ItemsController(ErpDbContext db, IAuditService audit) : ControllerB
             IsBatchTracked = request.IsBatchTracked,
             IsSerialTracked = request.IsSerialTracked,
             IsActive = true,
+            MinimumStock = request.MinimumStock,
         };
 
         db.Items.Add(item);
@@ -121,6 +122,7 @@ public class ItemsController(ErpDbContext db, IAuditService audit) : ControllerB
         item.HsnCode = request.HsnCode;
         item.IsBatchTracked = request.IsBatchTracked;
         item.IsSerialTracked = request.IsSerialTracked;
+        item.MinimumStock = request.MinimumStock;
 
         await audit.LogAsync("item.updated", nameof(Item), item.Id, oldValue, ToDto(item), ct: ct);
         await db.SaveChangesAsync(ct);
@@ -144,5 +146,5 @@ public class ItemsController(ErpDbContext db, IAuditService audit) : ControllerB
 
     private static ItemDto ToDto(Item i) => new(
         i.Id, i.Sku, i.Name, i.CategoryId, i.Unit, i.ItemKind, i.PurchasePrice, i.SellingPrice,
-        i.TaxRatePercent, i.HsnCode, i.IsBatchTracked, i.IsSerialTracked, i.IsActive, i.StockBalance?.QuantityOnHand ?? 0);
+        i.TaxRatePercent, i.HsnCode, i.IsBatchTracked, i.IsSerialTracked, i.IsActive, i.StockBalance?.QuantityOnHand ?? 0, i.MinimumStock);
 }
