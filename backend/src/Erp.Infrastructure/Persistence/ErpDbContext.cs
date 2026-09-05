@@ -10,6 +10,7 @@ using Erp.Domain.Items;
 using Erp.Domain.Purchases;
 using Erp.Domain.Sales;
 using Erp.Domain.Shops;
+using Erp.Domain.Staff;
 using Erp.Domain.System;
 using Erp.Domain.Whatsapp;
 using Microsoft.EntityFrameworkCore;
@@ -67,6 +68,11 @@ public class ErpDbContext(DbContextOptions<ErpDbContext> options, ICurrentUserSe
     public DbSet<PurchaseReceipt> PurchaseReceipts => Set<PurchaseReceipt>();
     public DbSet<PurchaseReceiptLine> PurchaseReceiptLines => Set<PurchaseReceiptLine>();
     public DbSet<PurchasePayment> PurchasePayments => Set<PurchasePayment>();
+
+    // Staff & Salary
+    public DbSet<Erp.Domain.Staff.Staff> Staff => Set<Erp.Domain.Staff.Staff>();
+    public DbSet<SalaryPayment> SalaryPayments => Set<SalaryPayment>();
+    public DbSet<SalaryPaymentEntry> SalaryPaymentEntries => Set<SalaryPaymentEntry>();
 
     // Audit / WhatsApp / System
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();

@@ -31,6 +31,11 @@ public static class PermissionKeys
     public const string StockView = "stock.view";
     public const string StockAdjust = "stock.adjust";
 
+    public const string StaffView = "staff.view";
+    public const string StaffManage = "staff.manage";
+    public const string StaffSalaryView = "staff.salary.view";
+    public const string StaffSalaryPay = "staff.salary.pay";
+
     public const string ReportsSalesView = "reports.sales.view";
     public const string ReportsPurchaseView = "reports.purchase.view";
     public const string ReportsFinanceView = "reports.finance.view";
@@ -73,6 +78,11 @@ public static class PermissionKeys
 
         (StockView, "stock", "View stock levels and movements"),
         (StockAdjust, "stock", "Create manual stock adjustments"),
+
+        (StaffView, "staff", "View staff master"),
+        (StaffManage, "staff", "Create/edit/deactivate staff"),
+        (StaffSalaryView, "staff", "View salary records and payment history"),
+        (StaffSalaryPay, "staff", "Generate salary records and record salary payments"),
 
         (ReportsSalesView, "reports", "View sales reports (own/team)"),
         (ReportsPurchaseView, "reports", "View purchase reports (own/team)"),

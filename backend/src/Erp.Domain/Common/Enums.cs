@@ -157,3 +157,24 @@ public enum BackupStatus
     Success,
     Failed
 }
+
+public enum StaffEmploymentStatus
+{
+    Active,
+    Inactive,
+    Terminated
+}
+
+public enum StaffSalaryType
+{
+    Monthly,
+    Daily,
+    Hourly
+}
+
+public enum SalaryPaymentStatus
+{
+    Pending,
+    PartiallyPaid,
+    Paid
+}
