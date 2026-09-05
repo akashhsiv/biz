@@ -150,5 +150,29 @@ public class ErpDbContext(DbContextOptions<ErpDbContext> options, ICurrentUserSe
                 entry.Entity.UpdatedAt = now;
             }
         }
+
+        StampShopId();
+    }
+
+    /// <summary>Same mechanism/style as StampAuditColumns above: for every newly-added IShopScoped
+    /// entity that hasn't already had ShopId explicitly set by the caller (e.g. seed/backfill code,
+    /// or an admin flow creating data across shops), stamp it from ICurrentUserService.CurrentShopId.
+    /// A shop-scoped entity being created with no shop selected is a genuine bug — the request should
+    /// have required shop selection before reaching this point — so we throw rather than silently
+    /// writing Guid.Empty (which would violate the FK to Shops or bypass the query filter).</summary>
+    private void StampShopId()
+    {
+        foreach (var entry in ChangeTracker.Entries<IShopScoped>())
+        {
+            if (entry.State != EntityState.Added) continue;
+            if (entry.Entity.ShopId != Guid.Empty) continue; // caller already set it explicitly — don't override
+
+            var shopId = currentUser?.CurrentShopId
+                ?? throw new InvalidOperationException(
+                    $"Cannot create a {entry.Entity.GetType().Name} without a ShopId: no shop is selected for the current request (ICurrentUserService.CurrentShopId is null). " +
+                    "Either select a shop before performing this operation, or set ShopId explicitly when constructing the entity.");
+
+            entry.Entity.ShopId = shopId;
+        }
     }
 }
