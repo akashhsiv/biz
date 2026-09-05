@@ -1,3 +1,5 @@
+import '../reports/document_payment_status.dart';
+
 enum SalesInvoiceStatus { active, cancelled }
 
 class SalesInvoiceLine {
@@ -55,6 +57,9 @@ class SalesInvoice {
   final double taxTotal;
   final double grandTotal;
   final double depositAllocatedTotal;
+  final DateTime? dueDate;
+  final double outstandingTotal;
+  final DocumentPaymentStatus paymentStatus;
   final List<SalesInvoiceLine> lines;
   final String? cancellationReason;
   final String? placeOfSupply;
@@ -71,6 +76,9 @@ class SalesInvoice {
     this.taxTotal = 0,
     required this.grandTotal,
     required this.depositAllocatedTotal,
+    this.dueDate,
+    this.outstandingTotal = 0,
+    this.paymentStatus = DocumentPaymentStatus.paid,
     this.lines = const [],
     this.cancellationReason,
     this.placeOfSupply,
@@ -88,6 +96,9 @@ class SalesInvoice {
         taxTotal: (json['taxTotal'] as num?)?.toDouble() ?? 0,
         grandTotal: (json['grandTotal'] as num).toDouble(),
         depositAllocatedTotal: (json['depositAllocatedTotal'] as num).toDouble(),
+        dueDate: json['dueDate'] == null ? null : DateTime.parse(json['dueDate'] as String),
+        outstandingTotal: (json['outstandingTotal'] as num?)?.toDouble() ?? 0,
+        paymentStatus: DocumentPaymentStatus.values[json['paymentStatus'] as int? ?? 0],
         lines: (json['lines'] as List? ?? []).map((e) => SalesInvoiceLine.fromJson(e as Map<String, dynamic>)).toList(),
         cancellationReason: json['cancellationReason'] as String?,
         placeOfSupply: json['placeOfSupply'] as String?,

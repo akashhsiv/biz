@@ -1,3 +1,5 @@
+import '../reports/document_payment_status.dart';
+
 enum PurchaseOrderStatus { draft, submitted, processing, partiallyCompleted, completed, cancelled }
 
 enum PurchasePaymentStatus { processing, completed, cancelled }
@@ -53,6 +55,9 @@ class PurchaseOrder {
   final String supplierId;
   final PurchaseOrderStatus status;
   final PurchasePaymentStatus paymentStatus;
+  final DateTime? dueDate;
+  final DocumentPaymentStatus balancePaymentStatus;
+  final double outstandingTotal;
   final double grandTotal;
   final List<PurchaseOrderLine> lines;
   final List<PurchasePayment> payments;
@@ -65,6 +70,9 @@ class PurchaseOrder {
     required this.supplierId,
     required this.status,
     required this.paymentStatus,
+    this.dueDate,
+    this.balancePaymentStatus = DocumentPaymentStatus.paid,
+    this.outstandingTotal = 0,
     required this.grandTotal,
     required this.lines,
     required this.payments,
@@ -78,6 +86,9 @@ class PurchaseOrder {
         supplierId: json['supplierId'] as String,
         status: PurchaseOrderStatus.values[json['status'] as int],
         paymentStatus: PurchasePaymentStatus.values[json['paymentStatus'] as int],
+        dueDate: json['dueDate'] == null ? null : DateTime.parse(json['dueDate'] as String),
+        balancePaymentStatus: DocumentPaymentStatus.values[json['balancePaymentStatus'] as int? ?? 0],
+        outstandingTotal: (json['outstandingTotal'] as num?)?.toDouble() ?? 0,
         grandTotal: (json['grandTotal'] as num).toDouble(),
         lines: (json['lines'] as List).map((e) => PurchaseOrderLine.fromJson(e as Map<String, dynamic>)).toList(),
         payments: (json['payments'] as List).map((e) => PurchasePayment.fromJson(e as Map<String, dynamic>)).toList(),

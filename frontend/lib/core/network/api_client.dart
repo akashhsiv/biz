@@ -65,8 +65,17 @@ class ApiClient {
     }
   }
 
-  Future<ApiResult<T>> post<T>(String path, T Function(dynamic json) parse, {Object? body, String? idempotencyKey, Duration? receiveTimeout}) =>
-      _send(() => _dio.post(path, data: body, options: _withIdempotency(idempotencyKey)?.copyWith(receiveTimeout: receiveTimeout) ?? Options(receiveTimeout: receiveTimeout)), parse);
+  Future<ApiResult<T>> post<T>(String path, T Function(dynamic json) parse,
+          {Object? body, String? idempotencyKey, Duration? receiveTimeout, Map<String, dynamic>? query}) =>
+      _send(
+        () => _dio.post(
+          path,
+          data: body,
+          queryParameters: query,
+          options: _withIdempotency(idempotencyKey)?.copyWith(receiveTimeout: receiveTimeout) ?? Options(receiveTimeout: receiveTimeout),
+        ),
+        parse,
+      );
 
   Future<ApiResult<T>> put<T>(String path, T Function(dynamic json) parse, {Object? body}) =>
       _send(() => _dio.put(path, data: body), parse);

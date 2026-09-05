@@ -3,16 +3,40 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/network/api_result.dart';
 import '../../core/providers.dart';
 import 'customer_report_model.dart';
+import 'document_payment_status.dart';
 
-final salesReportProvider = FutureProvider.autoDispose<Map<String, dynamic>?>((ref) async {
+/// Filter for [salesReportProvider] / [purchaseReportProvider] - kept as a value type with proper
+/// ==/hashCode so the autoDispose.family provider caches correctly per distinct filter, same
+/// pattern as [CustomerReportFilter].
+class PaymentStatusReportFilter {
+  final DocumentPaymentStatus? paymentStatus;
+
+  const PaymentStatusReportFilter({this.paymentStatus});
+
+  @override
+  bool operator ==(Object other) => other is PaymentStatusReportFilter && other.paymentStatus == paymentStatus;
+
+  @override
+  int get hashCode => paymentStatus.hashCode;
+}
+
+final salesReportProvider = FutureProvider.autoDispose.family<Map<String, dynamic>?, PaymentStatusReportFilter>((ref, filter) async {
   final api = ref.watch(apiClientProvider);
-  final result = await api.get<Map<String, dynamic>>('/api/reports/sales', (json) => json as Map<String, dynamic>);
+  final result = await api.get<Map<String, dynamic>>(
+    '/api/reports/sales',
+    (json) => json as Map<String, dynamic>,
+    query: {if (filter.paymentStatus != null) 'paymentStatus': filter.paymentStatus!.index},
+  );
   return switch (result) { ApiSuccess(data: final data) => data, _ => null };
 });
 
-final purchaseReportProvider = FutureProvider.autoDispose<Map<String, dynamic>?>((ref) async {
+final purchaseReportProvider = FutureProvider.autoDispose.family<Map<String, dynamic>?, PaymentStatusReportFilter>((ref, filter) async {
   final api = ref.watch(apiClientProvider);
-  final result = await api.get<Map<String, dynamic>>('/api/reports/purchase', (json) => json as Map<String, dynamic>);
+  final result = await api.get<Map<String, dynamic>>(
+    '/api/reports/purchase',
+    (json) => json as Map<String, dynamic>,
+    query: {if (filter.paymentStatus != null) 'paymentStatus': filter.paymentStatus!.index},
+  );
   return switch (result) { ApiSuccess(data: final data) => data, _ => null };
 });
 

@@ -18,6 +18,7 @@ import '../../shared/widgets/searchable_dropdown.dart';
 import '../../shared/widgets/skeleton_loader.dart';
 import '../items/item_model.dart';
 import '../items/items_provider.dart';
+import '../reports/document_payment_status.dart';
 import '../users/user_directory_provider.dart';
 import 'purchase_order_model.dart';
 import 'purchases_provider.dart';
@@ -37,6 +38,13 @@ Widget _poPaymentStatusPill(PurchasePaymentStatus status) => switch (status) {
       PurchasePaymentStatus.processing => StatusPill.warning('Processing'),
       PurchasePaymentStatus.completed => StatusPill.success('Completed'),
       PurchasePaymentStatus.cancelled => StatusPill.cancelled('Cancelled'),
+    };
+
+Widget _balancePaymentStatusPill(DocumentPaymentStatus status) => switch (status) {
+      DocumentPaymentStatus.paid => StatusPill.success(status.label),
+      DocumentPaymentStatus.partiallyPaid => StatusPill.warning(status.label),
+      DocumentPaymentStatus.credit => StatusPill.info(status.label),
+      DocumentPaymentStatus.overdue => StatusPill.error(status.label),
     };
 
 class PurchasesScreen extends StatelessWidget {
@@ -359,7 +367,7 @@ class _PurchaseOrdersTabState extends ConsumerState<_PurchaseOrdersTab> {
               ),
             );
           },
-          loading: () => Padding(padding: const EdgeInsets.all(24), child: Card(child: SkeletonTableRows(columns: 7))),
+          loading: () => Padding(padding: const EdgeInsets.all(24), child: Card(child: SkeletonTableRows(columns: 8))),
           error: (e, _) => Center(child: Text('Failed to load purchase orders: $e')),
         ),
       ),
@@ -388,6 +396,7 @@ class _PurchaseOrderListCard extends StatelessWidget {
         AppListColumn('Total', flex: 2),
         AppListColumn('Status', flex: 3),
         AppListColumn('Payment', flex: 3),
+        AppListColumn('Balance', flex: 3),
         AppListColumn('Created By', flex: 3),
       ],
       itemCount: orders.length,
@@ -402,6 +411,7 @@ class _PurchaseOrderListCard extends StatelessWidget {
           Text('₹${o.grandTotal.toStringAsFixed(0)}', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
           _poStatusPill(o.status),
           _poPaymentStatusPill(o.paymentStatus),
+          _balancePaymentStatusPill(o.balancePaymentStatus),
           Text(userNameOf[o.createdBy] ?? '-', style: const TextStyle(color: AppPalette.textSecondary, fontSize: 12)),
         ];
       },
@@ -517,7 +527,17 @@ class _PurchaseOrderDetailPanelState extends ConsumerState<_PurchaseOrderDetailP
                     ],
                   ),
                 ),
-                Column(crossAxisAlignment: CrossAxisAlignment.end, children: [_poStatusPill(o.status), const SizedBox(height: 4), _poPaymentStatusPill(o.paymentStatus)]),
+                Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                  _poStatusPill(o.status),
+                  const SizedBox(height: 4),
+                  _poPaymentStatusPill(o.paymentStatus),
+                  const SizedBox(height: 4),
+                  _balancePaymentStatusPill(o.balancePaymentStatus),
+                  if (o.outstandingTotal > 0) ...[
+                    const SizedBox(height: 4),
+                    Text('Outstanding: ₹${o.outstandingTotal.toStringAsFixed(2)}', style: const TextStyle(fontSize: 11, color: AppPalette.textSecondary)),
+                  ],
+                ]),
               ],
             ),
             const SizedBox(height: 16),

@@ -24,6 +24,56 @@ String _formatDate(DateTime d) {
   return '${d.day} ${months[d.month - 1]} ${d.year}';
 }
 
+/// Prompts for an optional due date (credit terms) before converting a Proforma to a Sales
+/// Invoice — this is the actual invoice-creation step, so it's the natural place to set the
+/// invoice's payment due date. Returns null if the user cancelled the whole conversion, or a
+/// (possibly-null) DateTime if they proceeded — null meaning "no due date / due immediately".
+Future<(bool proceed, DateTime? dueDate)> _promptDueDate(BuildContext context) async {
+  DateTime? dueDate;
+  final proceed = await showDialog<bool>(
+    context: context,
+    builder: (context) => StatefulBuilder(
+      builder: (context, setState) => AlertDialog(
+        title: const Text('Convert to Sales Invoice'),
+        content: SizedBox(
+          width: 360,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Optionally set a due date to grant credit terms on the resulting invoice.'),
+              const SizedBox(height: 16),
+              OutlinedButton.icon(
+                onPressed: () async {
+                  final picked = await showDatePicker(
+                    context: context,
+                    initialDate: dueDate ?? DateTime.now(),
+                    firstDate: DateTime.now().subtract(const Duration(days: 1)),
+                    lastDate: DateTime(2100),
+                  );
+                  if (picked != null) setState(() => dueDate = picked);
+                },
+                icon: const Icon(Icons.calendar_today_outlined, size: 16),
+                label: Text(dueDate == null ? 'Set Due Date (optional)' : 'Due: ${_formatDate(dueDate!)}'),
+              ),
+              if (dueDate != null)
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton(onPressed: () => setState(() => dueDate = null), child: const Text('Clear due date')),
+                ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Convert')),
+        ],
+      ),
+    ),
+  );
+  return (proceed ?? false, dueDate);
+}
+
 Widget _proformaStatusPill(ProformaStatus status) => switch (status) {
       ProformaStatus.open => StatusPill.warning('Open'),
       ProformaStatus.fullyFunded => StatusPill.info('Fully Funded'),
@@ -229,6 +279,9 @@ class _ProformaDetailPanelState extends ConsumerState<_ProformaDetailPanel> {
   }
 
   Future<void> _convert() async {
+    final (proceed, dueDate) = await _promptDueDate(context);
+    if (!proceed) return;
+
     setState(() {
       _busy = true;
       _notice = null;
@@ -242,6 +295,7 @@ class _ProformaDetailPanelState extends ConsumerState<_ProformaDetailPanel> {
             (json) => json as Map<String, dynamic>,
             body: const {},
             idempotencyKey: key,
+            query: {if (dueDate != null) 'dueDate': dueDate.toIso8601String()},
           ),
         );
 

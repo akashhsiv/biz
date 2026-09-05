@@ -17,6 +17,7 @@ import '../../shared/widgets/skeleton_loader.dart';
 import '../../shared/widgets/whatsapp_send_button.dart';
 import '../customers/customers_provider.dart';
 import '../items/items_provider.dart';
+import '../reports/document_payment_status.dart';
 import '../users/user_directory_provider.dart';
 import 'sales_invoice_model.dart';
 import 'sales_invoices_provider.dart';
@@ -28,6 +29,13 @@ String _formatDate(DateTime d) {
 
 Widget _invoiceStatusPill(SalesInvoiceStatus status) =>
     status == SalesInvoiceStatus.active ? StatusPill.success('Active') : StatusPill.cancelled('Cancelled');
+
+Widget _invoicePaymentStatusPill(DocumentPaymentStatus status) => switch (status) {
+      DocumentPaymentStatus.paid => StatusPill.success(status.label),
+      DocumentPaymentStatus.partiallyPaid => StatusPill.warning(status.label),
+      DocumentPaymentStatus.credit => StatusPill.info(status.label),
+      DocumentPaymentStatus.overdue => StatusPill.error(status.label),
+    };
 
 class SalesInvoicesScreen extends ConsumerStatefulWidget {
   const SalesInvoicesScreen({super.key});
@@ -144,7 +152,7 @@ class _SalesInvoicesScreenState extends ConsumerState<SalesInvoicesScreen> {
               ),
             );
           },
-          loading: () => Padding(padding: const EdgeInsets.all(24), child: Card(child: SkeletonTableRows(columns: 6))),
+          loading: () => Padding(padding: const EdgeInsets.all(24), child: Card(child: SkeletonTableRows(columns: 7))),
           error: (e, _) => Center(child: Text('Failed to load sales invoices: $e')),
         ),
       ),
@@ -172,6 +180,7 @@ class _InvoiceListCard extends StatelessWidget {
         AppListColumn('Date', flex: 3),
         AppListColumn('Total', flex: 2),
         AppListColumn('Status', flex: 3),
+        AppListColumn('Payment', flex: 3),
         AppListColumn('Created By', flex: 3),
       ],
       itemCount: invoices.length,
@@ -185,6 +194,7 @@ class _InvoiceListCard extends StatelessWidget {
           Text(_formatDate(inv.createdAt), style: const TextStyle(color: AppPalette.textSecondary, fontSize: 12)),
           Text('₹${inv.grandTotal.toStringAsFixed(0)}', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
           _invoiceStatusPill(inv.status),
+          _invoicePaymentStatusPill(inv.paymentStatus),
           Text(userNameOf[inv.createdBy] ?? '-', style: const TextStyle(color: AppPalette.textSecondary, fontSize: 12)),
         ];
       },
@@ -258,6 +268,10 @@ class _InvoiceDetailPanelState extends ConsumerState<_InvoiceDetailPanel> {
                         const SizedBox(height: 2),
                         Text('Place of Supply: ${inv.placeOfSupply}', style: const TextStyle(color: AppPalette.textMuted, fontSize: 12)),
                       ],
+                      if (inv.dueDate != null) ...[
+                        const SizedBox(height: 2),
+                        Text('Due: ${_formatDate(inv.dueDate!)}', style: const TextStyle(color: AppPalette.textMuted, fontSize: 12)),
+                      ],
                       if (inv.cancellationReason != null) ...[
                         const SizedBox(height: 2),
                         Text('Cancelled: ${inv.cancellationReason}', style: const TextStyle(color: Colors.grey, fontSize: 12)),
@@ -265,7 +279,15 @@ class _InvoiceDetailPanelState extends ConsumerState<_InvoiceDetailPanel> {
                     ],
                   ),
                 ),
-                _invoiceStatusPill(inv.status),
+                Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                  _invoiceStatusPill(inv.status),
+                  const SizedBox(height: 4),
+                  _invoicePaymentStatusPill(inv.paymentStatus),
+                  if (inv.outstandingTotal > 0) ...[
+                    const SizedBox(height: 4),
+                    Text('Outstanding: ₹${inv.outstandingTotal.toStringAsFixed(2)}', style: const TextStyle(fontSize: 11, color: AppPalette.textSecondary)),
+                  ],
+                ]),
               ],
             ),
             const SizedBox(height: 16),

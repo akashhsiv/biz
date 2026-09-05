@@ -10,6 +10,7 @@ import '../../shared/widgets/list_screen_shortcuts.dart';
 import '../../shared/widgets/report_pdf_export.dart';
 import '../../shared/widgets/skeleton_loader.dart';
 import 'customer_report_model.dart';
+import 'document_payment_status.dart';
 import 'reports_provider.dart';
 
 class ReportsScreen extends ConsumerWidget {
@@ -372,12 +373,41 @@ class _BreakdownDonut extends StatelessWidget {
   }
 }
 
-class _SalesReportTab extends ConsumerWidget {
+/// Dropdown for filtering a report by [DocumentPaymentStatus], shared by the Sales and Purchase
+/// report tabs.
+Widget _paymentStatusFilterDropdown(DocumentPaymentStatus? value, ValueChanged<DocumentPaymentStatus?> onChanged) {
+  return SizedBox(
+    width: 200,
+    child: DropdownButtonFormField<DocumentPaymentStatus?>(
+      initialValue: value,
+      decoration: const InputDecoration(isDense: true, labelText: 'Payment Status', border: OutlineInputBorder()),
+      items: [
+        const DropdownMenuItem<DocumentPaymentStatus?>(value: null, child: Text('All')),
+        for (final s in DocumentPaymentStatus.values) DropdownMenuItem<DocumentPaymentStatus?>(value: s, child: Text(s.label)),
+      ],
+      onChanged: onChanged,
+    ),
+  );
+}
+
+class _SalesReportTab extends ConsumerStatefulWidget {
   const _SalesReportTab();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final reportAsync = ref.watch(salesReportProvider);
+  ConsumerState<_SalesReportTab> createState() => _SalesReportTabState();
+}
+
+class _SalesReportTabState extends ConsumerState<_SalesReportTab> {
+  DocumentPaymentStatus? _paymentStatus;
+
+  @override
+  Widget build(BuildContext context) {
+    final filter = PaymentStatusReportFilter(paymentStatus: _paymentStatus);
+    final reportAsync = ref.watch(salesReportProvider(filter));
+    final filterBar = Padding(
+      padding: const EdgeInsets.only(bottom: 20),
+      child: _paymentStatusFilterDropdown(_paymentStatus, (v) => setState(() => _paymentStatus = v)),
+    );
 
     return reportAsync.when(
       data: (r) {
@@ -409,6 +439,7 @@ class _SalesReportTab extends ConsumerWidget {
             ],
           ),
           children: [
+            filterBar,
             _StatRow([
               _Stat(icon: Icons.point_of_sale_outlined, label: 'Total Sales', value: '₹${(r['totalSales'] as num).toStringAsFixed(2)}', color: AppPalette.success),
               _Stat(icon: Icons.receipt_long_outlined, label: 'Invoices', value: '${r['invoiceCount']}'),
@@ -445,12 +476,24 @@ Widget _breakdownTable(BuildContext context, List<String> columns, Iterable<List
   );
 }
 
-class _PurchaseReportTab extends ConsumerWidget {
+class _PurchaseReportTab extends ConsumerStatefulWidget {
   const _PurchaseReportTab();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final reportAsync = ref.watch(purchaseReportProvider);
+  ConsumerState<_PurchaseReportTab> createState() => _PurchaseReportTabState();
+}
+
+class _PurchaseReportTabState extends ConsumerState<_PurchaseReportTab> {
+  DocumentPaymentStatus? _paymentStatus;
+
+  @override
+  Widget build(BuildContext context) {
+    final filter = PaymentStatusReportFilter(paymentStatus: _paymentStatus);
+    final reportAsync = ref.watch(purchaseReportProvider(filter));
+    final filterBar = Padding(
+      padding: const EdgeInsets.only(bottom: 20),
+      child: _paymentStatusFilterDropdown(_paymentStatus, (v) => setState(() => _paymentStatus = v)),
+    );
 
     return reportAsync.when(
       data: (r) {
@@ -473,6 +516,7 @@ class _PurchaseReportTab extends ConsumerWidget {
             ],
           ),
           children: [
+            filterBar,
             _StatRow([
               _Stat(icon: Icons.local_shipping_outlined, label: 'Total Purchases', value: '₹${(r['totalPurchases'] as num).toStringAsFixed(2)}', color: AppPalette.primary),
               _Stat(icon: Icons.assignment_outlined, label: 'Orders', value: '${r['orderCount']}'),

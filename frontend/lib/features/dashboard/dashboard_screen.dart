@@ -23,7 +23,7 @@ class DashboardScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final auth = ref.watch(authControllerProvider);
-    final salesReport = ref.watch(salesReportProvider);
+    final salesReport = ref.watch(salesReportProvider(const PaymentStatusReportFilter()));
     final lowStock = ref.watch(lowStockReportProvider);
     final balance = ref.watch(shopBalanceProvider);
 
