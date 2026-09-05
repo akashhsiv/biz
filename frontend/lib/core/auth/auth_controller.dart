@@ -94,11 +94,28 @@ class AuthController extends StateNotifier<AuthState> {
     // ApiNetworkError is left alone - an unreachable Host doesn't mean the token is invalid, just unconfirmed.
   }
 
+  /// Folds the shop-scoped role/permissions returned by POST /api/auth/select-shop into the
+  /// current session state and the cached profile (so a restart after picking a shop restores
+  /// with that shop's access, not the stale pre-selection one).
+  Future<void> applyShopRole(String roleName, Set<String> permissions) async {
+    state = state.copyWith(roleName: roleName, permissions: permissions);
+
+    final profile = await _storage.getProfile();
+    if (profile != null) {
+      await _storage.saveProfile({
+        ...profile,
+        'roleName': roleName,
+        'permissions': permissions.toList(),
+      });
+    }
+  }
+
   Future<void> logout() async {
     debugPrint('[AuthController] logout: user=${state.username}');
     await _api.post('/api/auth/logout', (_) => null);
     await _storage.clearToken();
     await _storage.clearProfile();
+    await _storage.clearSelectedShopId();
     state = AuthState.initial;
   }
 }

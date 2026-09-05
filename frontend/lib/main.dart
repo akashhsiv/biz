@@ -5,6 +5,7 @@ import 'package:window_manager/window_manager.dart';
 import 'app.dart';
 import 'core/auth/auth_controller.dart';
 import 'core/logging/file_logger.dart';
+import 'features/shops/shops_provider.dart';
 import 'shared/widgets/custom_title_bar.dart';
 import 'shared/widgets/overlay_host.dart';
 
@@ -51,7 +52,8 @@ class _BootstrapState extends ConsumerState<_Bootstrap> {
   @override
   void initState() {
     super.initState();
-    ref.read(authControllerProvider.notifier).restoreFromCache().then((_) {
+    ref.read(authControllerProvider.notifier).restoreFromCache().then((_) async {
+      await ref.read(selectedShopControllerProvider.notifier).restoreFromCache();
       if (mounted) setState(() => _ready = true);
     });
   }

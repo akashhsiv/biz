@@ -12,6 +12,7 @@ class AppStorage {
   static const _hostUrlKey = 'host_url';
   static const _tokenKey = 'session_token';
   static const _profileKey = 'session_profile';
+  static const _shopIdKey = 'selected_shop_id';
 
   final _secure = const FlutterSecureStorage();
 
@@ -45,5 +46,22 @@ class AppStorage {
   Future<void> clearProfile() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_profileKey);
+  }
+
+  /// Multi-shop rework: the currently selected shop is just a UI/session convenience (not a
+  /// credential), so it lives alongside the host URL in plain prefs rather than secure storage.
+  Future<String?> getSelectedShopId() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_shopIdKey);
+  }
+
+  Future<void> saveSelectedShopId(String shopId) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_shopIdKey, shopId);
+  }
+
+  Future<void> clearSelectedShopId() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_shopIdKey);
   }
 }

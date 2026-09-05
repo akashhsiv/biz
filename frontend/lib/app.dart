@@ -25,6 +25,8 @@ import 'features/reports/reports_screen.dart';
 import 'features/returns/sales_returns_screen.dart';
 import 'features/settings/company_settings_screen.dart';
 import 'features/settings/shop_configuration_screen.dart';
+import 'features/shops/shop_gate.dart';
+import 'features/shops/shops_provider.dart';
 import 'features/sales/sales_invoices_screen.dart';
 import 'features/stock/stock_screen.dart';
 import 'features/users/users_screen.dart';
@@ -61,6 +63,11 @@ class ErpApp extends ConsumerWidget {
       home = const ConnectionScreen();
     } else if (!auth.isAuthenticated) {
       home = const LoginScreen();
+    } else if (ref.watch(selectedShopControllerProvider) == null) {
+      // Multi-shop rework: no shop persisted/valid yet for this session - resolve one (auto-select
+      // if there's only one, otherwise show the picker) before AppShell. A shop restored from a
+      // previous session skips straight past this branch (still fine to lazily re-validate later).
+      home = const ShopGate();
     } else {
       home = AppShell(items: [
         NavItem(label: 'Dashboard', icon: Icons.dashboard_outlined, builder: (_) => const DashboardScreen()),
