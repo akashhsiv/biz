@@ -1,9 +1,19 @@
 namespace Erp.Domain.Audit;
 
-/// <summary>Append-only. No update/delete path is ever exposed anywhere in the application.</summary>
+/// <summary>Append-only. No update/delete path is ever exposed anywhere in the application.
+///
+/// ShopId is deliberately nullable and AuditLog does NOT implement IShopScoped (unlike the other
+/// entities touched by the multi-shop rework): some audited actions genuinely have no shop yet
+/// (user.login/user.logout happen before a session selects a shop), and an audit trail an Admin can
+/// review across every shop they have access to is more useful than one silently filtered to
+/// "whichever shop happens to be active right now". Set it when the action is shop-scoped, leave it
+/// null otherwise.</summary>
 public class AuditLog
 {
     public Guid Id { get; set; } = Guid.NewGuid();
+
+    public Guid? ShopId { get; set; }
+    public Erp.Domain.Shops.Shop? Shop { get; set; }
 
     public Guid UserId { get; set; }
     public string RoleAtTime { get; set; } = default!;

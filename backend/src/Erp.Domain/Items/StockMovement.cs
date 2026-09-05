@@ -3,9 +3,12 @@ using Erp.Domain.Common;
 namespace Erp.Domain.Items;
 
 /// <summary>Append-only ledger of every stock change. Never updated or deleted after insert; corrections are new rows of type Reversal.</summary>
-public class StockMovement
+public class StockMovement : IShopScoped
 {
     public Guid Id { get; set; } = Guid.NewGuid();
+
+    public Guid ShopId { get; set; }
+    public Erp.Domain.Shops.Shop Shop { get; set; } = default!;
 
     public Guid ItemId { get; set; }
     public Item Item { get; set; } = default!;

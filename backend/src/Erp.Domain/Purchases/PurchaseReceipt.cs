@@ -1,8 +1,14 @@
+using Erp.Domain.Common;
+
 namespace Erp.Domain.Purchases;
 
-public class PurchaseReceipt
+public class PurchaseReceipt : IShopScoped
 {
     public Guid Id { get; set; } = Guid.NewGuid();
+
+    public Guid ShopId { get; set; }
+    public Erp.Domain.Shops.Shop Shop { get; set; } = default!;
+
     public string ReceiptNumber { get; set; } = default!;
     public string FinancialYear { get; set; } = default!;
 

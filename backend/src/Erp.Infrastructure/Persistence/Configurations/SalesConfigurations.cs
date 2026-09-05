@@ -34,8 +34,11 @@ public class QuotationConfiguration : IEntityTypeConfiguration<Quotation>
         b.Property(x => x.FinancialYear).HasMaxLength(10).IsRequired();
         DecimalCols(b);
 
-        b.HasIndex(x => x.QuotationNumber).IsUnique();
+        b.HasIndex(x => new { x.ShopId, x.QuotationNumber }).IsUnique();
         b.HasIndex(x => new { x.CustomerId, x.CreatedAt });
+
+        b.HasOne(x => x.Shop).WithMany()
+            .HasForeignKey(x => x.ShopId).OnDelete(DeleteBehavior.Restrict);
 
         b.HasOne(x => x.Customer).WithMany()
             .HasForeignKey(x => x.CustomerId).OnDelete(DeleteBehavior.Restrict);
@@ -73,8 +76,11 @@ public class ProformaInvoiceConfiguration : IEntityTypeConfiguration<ProformaInv
         b.Property(x => x.FinancialYear).HasMaxLength(10).IsRequired();
         DecimalCols(b);
 
-        b.HasIndex(x => x.ProformaNumber).IsUnique();
+        b.HasIndex(x => new { x.ShopId, x.ProformaNumber }).IsUnique();
         b.HasIndex(x => x.CustomerId);
+
+        b.HasOne(x => x.Shop).WithMany()
+            .HasForeignKey(x => x.ShopId).OnDelete(DeleteBehavior.Restrict);
 
         b.HasOne(x => x.Quotation).WithMany()
             .HasForeignKey(x => x.QuotationId).OnDelete(DeleteBehavior.Restrict);
@@ -117,8 +123,11 @@ public class SalesInvoiceConfiguration : IEntityTypeConfiguration<SalesInvoice>
         b.Property(x => x.FinancialYear).HasMaxLength(10).IsRequired();
         DecimalCols(b);
 
-        b.HasIndex(x => x.InvoiceNumber).IsUnique();
+        b.HasIndex(x => new { x.ShopId, x.InvoiceNumber }).IsUnique();
         b.HasIndex(x => new { x.CustomerId, x.CreatedAt });
+
+        b.HasOne(x => x.Shop).WithMany()
+            .HasForeignKey(x => x.ShopId).OnDelete(DeleteBehavior.Restrict);
 
         b.HasOne(x => x.Customer).WithMany()
             .HasForeignKey(x => x.CustomerId).OnDelete(DeleteBehavior.Restrict);
@@ -156,6 +165,9 @@ public class ReturnPolicyConfiguration : IEntityTypeConfiguration<ReturnPolicy>
         b.Property(x => x.Name).HasMaxLength(100).IsRequired();
         b.Property(x => x.RestockingFeePercent).HasPrecision(5, 2);
 
+        b.HasOne(x => x.Shop).WithMany()
+            .HasForeignKey(x => x.ShopId).OnDelete(DeleteBehavior.Restrict);
+
         b.HasOne(x => x.Category).WithMany()
             .HasForeignKey(x => x.CategoryId).OnDelete(DeleteBehavior.Restrict);
     }
@@ -171,7 +183,10 @@ public class SalesReturnConfiguration : IEntityTypeConfiguration<SalesReturn>
         b.Property(x => x.FinancialYear).HasMaxLength(10).IsRequired();
         b.Property(x => x.TotalRefundAmount).HasPrecision(18, 2);
 
-        b.HasIndex(x => x.ReturnNumber).IsUnique();
+        b.HasIndex(x => new { x.ShopId, x.ReturnNumber }).IsUnique();
+
+        b.HasOne(x => x.Shop).WithMany()
+            .HasForeignKey(x => x.ShopId).OnDelete(DeleteBehavior.Restrict);
 
         b.HasOne(x => x.SalesInvoice).WithMany()
             .HasForeignKey(x => x.SalesInvoiceId).OnDelete(DeleteBehavior.Restrict);

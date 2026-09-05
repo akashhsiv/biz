@@ -52,6 +52,33 @@ public class AuthService(ErpDbContext db) : IAuthService
         return new LoginResult(rawToken, expiresAt, user.Id, user.Username, user.FullName, user.Role.Name, permissions);
     }
 
+    public async Task<SelectShopResult> SelectShopAsync(Guid userId, string tokenHash, Guid shopId, CancellationToken ct = default)
+    {
+        var grant = await db.Set<UserShopRole>()
+            .Include(usr => usr.Role).ThenInclude(r => r.RolePermissions).ThenInclude(rp => rp.Permission)
+            .FirstOrDefaultAsync(usr => usr.UserId == userId && usr.ShopId == shopId, ct)
+            ?? throw new ValidationAppException("You do not have access to this shop.");
+
+        var session = await db.Sessions.FirstOrDefaultAsync(s => s.TokenHash == tokenHash && s.UserId == userId, ct)
+            ?? throw new ConflictAppException("Session not found.");
+
+        session.ShopId = shopId;
+        await db.SaveChangesAsync(ct);
+
+        var permissions = grant.Role.RolePermissions.Select(rp => rp.Permission.Key).ToList();
+        return new SelectShopResult(shopId, grant.Role.Name, permissions);
+    }
+
+    public async Task<IReadOnlyList<ShopSummaryDto>> GetAccessibleShopsAsync(Guid userId, CancellationToken ct = default)
+    {
+        return await db.Set<UserShopRole>()
+            .Where(usr => usr.UserId == userId)
+            .Select(usr => usr.Shop)
+            .Distinct()
+            .Select(s => new ShopSummaryDto(s.Id, s.Name, s.Gstin, s.IsActive))
+            .ToListAsync(ct);
+    }
+
     public async Task LogoutAsync(string tokenHash, CancellationToken ct = default)
     {
         var session = await db.Sessions.Include(s => s.User).ThenInclude(u => u.Role).FirstOrDefaultAsync(s => s.TokenHash == tokenHash, ct);

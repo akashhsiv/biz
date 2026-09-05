@@ -15,6 +15,9 @@ public class FinancialTransactionConfiguration : IEntityTypeConfiguration<Financ
         b.HasIndex(x => new { x.CustomerId, x.CreatedAt });
         b.HasIndex(x => new { x.TransactionType, x.CreatedAt });
 
+        b.HasOne(x => x.Shop).WithMany()
+            .HasForeignKey(x => x.ShopId).OnDelete(DeleteBehavior.Restrict);
+
         b.HasOne(x => x.Customer).WithMany()
             .HasForeignKey(x => x.CustomerId).OnDelete(DeleteBehavior.Restrict);
     }
@@ -29,6 +32,9 @@ public class CustomerDepositConfiguration : IEntityTypeConfiguration<CustomerDep
         b.Property(x => x.Amount).HasPrecision(18, 2);
 
         b.HasIndex(x => new { x.CustomerId, x.CreatedAt });
+
+        b.HasOne(x => x.Shop).WithMany()
+            .HasForeignKey(x => x.ShopId).OnDelete(DeleteBehavior.Restrict);
 
         b.HasOne(x => x.Customer).WithMany()
             .HasForeignKey(x => x.CustomerId).OnDelete(DeleteBehavior.Restrict);
@@ -49,7 +55,30 @@ public class DepositAllocationConfiguration : IEntityTypeConfiguration<DepositAl
         b.HasIndex(x => x.CustomerId);
         b.HasIndex(x => new { x.DocumentType, x.DocumentId });
 
+        b.HasOne(x => x.Shop).WithMany()
+            .HasForeignKey(x => x.ShopId).OnDelete(DeleteBehavior.Restrict);
+
         b.HasOne(x => x.Customer).WithMany()
             .HasForeignKey(x => x.CustomerId).OnDelete(DeleteBehavior.Restrict);
+    }
+}
+
+public class ExpenseConfiguration : IEntityTypeConfiguration<Expense>
+{
+    public void Configure(EntityTypeBuilder<Expense> b)
+    {
+        b.ToTable("expenses");
+        b.HasKey(x => x.Id);
+        b.Property(x => x.Category).HasMaxLength(100).IsRequired();
+        b.Property(x => x.Amount).HasPrecision(18, 2);
+        b.Property(x => x.Reason).HasMaxLength(500).IsRequired();
+
+        b.HasIndex(x => new { x.ShopId, x.CreatedAt });
+
+        b.HasOne(x => x.Shop).WithMany()
+            .HasForeignKey(x => x.ShopId).OnDelete(DeleteBehavior.Restrict);
+
+        b.HasOne(x => x.FinancialTransaction).WithMany()
+            .HasForeignKey(x => x.FinancialTransactionId).OnDelete(DeleteBehavior.Restrict);
     }
 }

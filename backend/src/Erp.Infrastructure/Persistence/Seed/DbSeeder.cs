@@ -1,5 +1,6 @@
 using Erp.Application.Security;
 using Erp.Domain.Identity;
+using Erp.Domain.Shops;
 using Erp.Domain.System;
 using Microsoft.EntityFrameworkCore;
 
@@ -37,10 +38,36 @@ public static class DbSeeder
         await GrantAsync(db, salesTeam, permissionsByKey, SalesTeamGrants, ct);
         await GrantAsync(db, purchaseTeam, permissionsByKey, PurchaseTeamGrants, ct);
 
-        await SeedCompanySettingsAsync(db, ct);
-        await SeedAdminUserAsync(db, shopAdmin, ct);
+        var defaultShop = await SeedDefaultCompanyAndShopAsync(db, ct);
+        await SeedCompanySettingsAsync(db, defaultShop, ct);
+        var admin = await SeedAdminUserAsync(db, shopAdmin, ct);
+        await SeedAdminUserShopRoleAsync(db, admin, defaultShop, shopAdmin, ct);
 
         await db.SaveChangesAsync(ct);
+    }
+
+    /// <summary>Multi-shop rework: a fresh database gets one Company and one Shop so existing
+    /// single-shop behaviour keeps working with no manual setup step. IShopScoped's query filter is a
+    /// no-op until a session selects a shop, so this seed alone doesn't force anyone through
+    /// select-shop — it just gives them exactly one shop to pick.</summary>
+    private static async Task<Shop> SeedDefaultCompanyAndShopAsync(ErpDbContext db, CancellationToken ct)
+    {
+        var existingShop = await db.Shops.IgnoreQueryFilters().FirstOrDefaultAsync(ct);
+        if (existingShop is not null) return existingShop;
+
+        var company = new Company { Name = "My Company" };
+        db.Companies.Add(company);
+
+        var shop = new Shop
+        {
+            Company = company,
+            Name = "My Shop",
+            Gstin = "00AAAAA0000A1Z5",
+            IsActive = true,
+        };
+        db.Shops.Add(shop);
+
+        return shop;
     }
 
     private static async Task<Dictionary<string, Permission>> SeedPermissionsAsync(ErpDbContext db, CancellationToken ct)
@@ -95,28 +122,48 @@ public static class DbSeeder
         }
     }
 
-    private static async Task SeedCompanySettingsAsync(ErpDbContext db, CancellationToken ct)
+    private static async Task SeedCompanySettingsAsync(ErpDbContext db, Shop shop, CancellationToken ct)
     {
-        if (await db.CompanySettings.AnyAsync(ct)) return;
+        if (await db.CompanySettings.IgnoreQueryFilters().AnyAsync(x => x.ShopId == shop.Id, ct)) return;
 
         db.CompanySettings.Add(new CompanySettings
         {
-            ShopName = "My Shop",
-            Gstin = "00AAAAA0000A1Z5",
+            Shop = shop,
+            ShopName = shop.Name,
+            Gstin = shop.Gstin,
             State = "Karnataka",
         });
     }
 
-    private static async Task SeedAdminUserAsync(ErpDbContext db, Role shopAdmin, CancellationToken ct)
+    /// <returns>The admin user — newly created, or the existing one if seeding already ran.</returns>
+    private static async Task<User> SeedAdminUserAsync(ErpDbContext db, Role shopAdmin, CancellationToken ct)
     {
-        if (await db.Users.AnyAsync(ct)) return;
+        var existing = await db.Users.IgnoreQueryFilters().FirstOrDefaultAsync(u => u.Username == "admin", ct);
+        if (existing is not null) return existing;
 
-        db.Users.Add(new User
+        var admin = new User
         {
             Username = "admin",
             FullName = "Shop Administrator",
             PasswordHash = BCrypt.Net.BCrypt.HashPassword("ChangeMe123!"),
             IsActive = true,
+            Role = shopAdmin,
+        };
+        db.Users.Add(admin);
+        return admin;
+    }
+
+    /// <summary>Grants the seeded admin Shop Admin access to the default shop via UserShopRole — the
+    /// mechanism that replaces User.RoleId for authorization going forward (see UserShopRole.cs).</summary>
+    private static async Task SeedAdminUserShopRoleAsync(ErpDbContext db, User admin, Shop shop, Role shopAdmin, CancellationToken ct)
+    {
+        var alreadyGranted = await db.Set<UserShopRole>().IgnoreQueryFilters().AnyAsync(x => x.UserId == admin.Id && x.ShopId == shop.Id, ct);
+        if (alreadyGranted) return;
+
+        db.Set<UserShopRole>().Add(new UserShopRole
+        {
+            User = admin,
+            Shop = shop,
             Role = shopAdmin,
         });
     }

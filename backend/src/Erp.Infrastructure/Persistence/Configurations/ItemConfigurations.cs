@@ -11,6 +11,9 @@ public class ItemCategoryConfiguration : IEntityTypeConfiguration<ItemCategory>
         b.ToTable("item_categories");
         b.HasKey(x => x.Id);
         b.Property(x => x.Name).HasMaxLength(100).IsRequired();
+
+        b.HasOne(x => x.Shop).WithMany()
+            .HasForeignKey(x => x.ShopId).OnDelete(DeleteBehavior.Restrict);
     }
 }
 
@@ -39,8 +42,11 @@ public class ItemConfiguration : IEntityTypeConfiguration<Item>
         b.Property(x => x.TaxRatePercent).HasPrecision(5, 2);
         b.Property(x => x.HsnCode).HasMaxLength(20);
 
-        b.HasIndex(x => x.Sku).IsUnique();
+        b.HasIndex(x => new { x.ShopId, x.Sku }).IsUnique();
         b.HasIndex(x => x.Name);
+
+        b.HasOne(x => x.Shop).WithMany()
+            .HasForeignKey(x => x.ShopId).OnDelete(DeleteBehavior.Restrict);
 
         b.HasOne(x => x.Category).WithMany()
             .HasForeignKey(x => x.CategoryId).OnDelete(DeleteBehavior.Restrict);
@@ -104,6 +110,9 @@ public class StockMovementConfiguration : IEntityTypeConfiguration<StockMovement
 
         b.HasIndex(x => new { x.ItemId, x.CreatedAt });
         b.HasIndex(x => new { x.ReferenceType, x.ReferenceId });
+
+        b.HasOne(x => x.Shop).WithMany()
+            .HasForeignKey(x => x.ShopId).OnDelete(DeleteBehavior.Restrict);
 
         b.HasOne(x => x.Item).WithMany()
             .HasForeignKey(x => x.ItemId).OnDelete(DeleteBehavior.Restrict);

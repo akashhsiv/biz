@@ -20,6 +20,9 @@ public class AuditLogConfiguration : IEntityTypeConfiguration<AuditLog>
         b.HasIndex(x => new { x.EntityType, x.EntityId });
         b.HasIndex(x => new { x.UserId, x.CreatedAt });
         b.HasIndex(x => new { x.Action, x.CreatedAt });
+
+        b.HasOne(x => x.Shop).WithMany()
+            .HasForeignKey(x => x.ShopId).OnDelete(DeleteBehavior.Restrict);
     }
 }
 
@@ -33,6 +36,9 @@ public class WhatsappOutboxItemConfiguration : IEntityTypeConfiguration<Whatsapp
         b.Property(x => x.PayloadJson).HasColumnType("jsonb").IsRequired();
 
         b.HasIndex(x => x.Status);
+
+        b.HasOne(x => x.Shop).WithMany()
+            .HasForeignKey(x => x.ShopId).OnDelete(DeleteBehavior.Restrict);
     }
 }
 
@@ -57,7 +63,11 @@ public class DocumentSequenceConfiguration : IEntityTypeConfiguration<DocumentSe
         b.Property(x => x.DocType).HasMaxLength(30).IsRequired();
         b.Property(x => x.FinancialYear).HasMaxLength(10).IsRequired();
 
-        b.HasIndex(x => new { x.DocType, x.FinancialYear }).IsUnique();
+        // Per-shop numbering (multi-shop rework): each shop gets its own counter per doc type/year.
+        b.HasIndex(x => new { x.ShopId, x.DocType, x.FinancialYear }).IsUnique();
+
+        b.HasOne(x => x.Shop).WithMany()
+            .HasForeignKey(x => x.ShopId).OnDelete(DeleteBehavior.Restrict);
     }
 }
 
@@ -67,6 +77,12 @@ public class CompanySettingsConfiguration : IEntityTypeConfiguration<CompanySett
     {
         b.ToTable("company_settings");
         b.HasKey(x => x.Id);
+
+        // 1:1 child of Shop (multi-shop rework) — see the design note on Erp.Domain.Shops.Shop.
+        b.HasIndex(x => x.ShopId).IsUnique();
+        b.HasOne(x => x.Shop).WithOne(x => x.Settings)
+            .HasForeignKey<CompanySettings>(x => x.ShopId).OnDelete(DeleteBehavior.Cascade);
+
         b.Property(x => x.ShopName).HasMaxLength(200).IsRequired();
         b.Property(x => x.Gstin).HasMaxLength(20).IsRequired();
         b.Property(x => x.State).HasMaxLength(50).IsRequired();

@@ -69,6 +69,10 @@ public class SessionConfiguration : IEntityTypeConfiguration<Session>
         b.HasOne(x => x.User).WithMany(x => x.Sessions)
             .HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
 
+        // Nullable — set only once the session selects a shop (POST /api/auth/select-shop).
+        b.HasOne(x => x.Shop).WithMany()
+            .HasForeignKey(x => x.ShopId).OnDelete(DeleteBehavior.Restrict);
+
         b.HasIndex(x => new { x.UserId, x.ExpiresAt });
     }
 }

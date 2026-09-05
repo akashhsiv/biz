@@ -6,8 +6,11 @@ namespace Erp.Domain.Finance;
 /// with a debit FinancialTransaction (TransactionType.AmountOut) — same pattern as CustomerDeposit
 /// pairing with a credit one — so it shows up in the existing Finance transaction list and shop
 /// balance with no separate plumbing.</summary>
-public class Expense : BaseEntity
+public class Expense : BaseEntity, IShopScoped
 {
+    public Guid ShopId { get; set; }
+    public Erp.Domain.Shops.Shop Shop { get; set; } = default!;
+
     public string Category { get; set; } = default!;
     public decimal Amount { get; set; }
     public string Reason { get; set; } = default!;

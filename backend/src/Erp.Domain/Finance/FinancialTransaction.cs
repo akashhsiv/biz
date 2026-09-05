@@ -4,9 +4,12 @@ using Erp.Domain.Customers;
 namespace Erp.Domain.Finance;
 
 /// <summary>Single append-only ledger row for every rupee that moves. Shop balance and customer deposit balance are always derived by summing this table, never stored as an independently-editable field.</summary>
-public class FinancialTransaction
+public class FinancialTransaction : IShopScoped
 {
     public Guid Id { get; set; } = Guid.NewGuid();
+
+    public Guid ShopId { get; set; }
+    public Erp.Domain.Shops.Shop Shop { get; set; } = default!;
 
     public FinancialTransactionType TransactionType { get; set; }
     public FinancialDirection Direction { get; set; }

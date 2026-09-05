@@ -13,6 +13,9 @@ public class SupplierConfiguration : IEntityTypeConfiguration<Supplier>
         b.Property(x => x.Name).HasMaxLength(200).IsRequired();
         b.Property(x => x.GstNumber).HasMaxLength(20);
         b.Property(x => x.State).HasMaxLength(50);
+
+        b.HasOne(x => x.Shop).WithMany()
+            .HasForeignKey(x => x.ShopId).OnDelete(DeleteBehavior.Restrict);
     }
 }
 
@@ -28,7 +31,10 @@ public class PurchaseOrderConfiguration : IEntityTypeConfiguration<PurchaseOrder
         b.Property(x => x.TaxTotal).HasPrecision(18, 2);
         b.Property(x => x.GrandTotal).HasPrecision(18, 2);
 
-        b.HasIndex(x => x.PoNumber).IsUnique();
+        b.HasIndex(x => new { x.ShopId, x.PoNumber }).IsUnique();
+
+        b.HasOne(x => x.Shop).WithMany()
+            .HasForeignKey(x => x.ShopId).OnDelete(DeleteBehavior.Restrict);
 
         b.HasOne(x => x.Supplier).WithMany()
             .HasForeignKey(x => x.SupplierId).OnDelete(DeleteBehavior.Restrict);
@@ -73,7 +79,10 @@ public class PurchaseReceiptConfiguration : IEntityTypeConfiguration<PurchaseRec
         b.Property(x => x.ReceiptNumber).HasMaxLength(30).IsRequired();
         b.Property(x => x.FinancialYear).HasMaxLength(10).IsRequired();
 
-        b.HasIndex(x => x.ReceiptNumber).IsUnique();
+        b.HasIndex(x => new { x.ShopId, x.ReceiptNumber }).IsUnique();
+
+        b.HasOne(x => x.Shop).WithMany()
+            .HasForeignKey(x => x.ShopId).OnDelete(DeleteBehavior.Restrict);
 
         b.HasMany(x => x.Lines).WithOne(x => x.PurchaseReceipt)
             .HasForeignKey(x => x.PurchaseReceiptId).OnDelete(DeleteBehavior.Cascade);

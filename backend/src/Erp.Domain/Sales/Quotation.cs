@@ -3,8 +3,11 @@ using Erp.Domain.Customers;
 
 namespace Erp.Domain.Sales;
 
-public class Quotation : BaseEntity
+public class Quotation : BaseEntity, IShopScoped
 {
+    public Guid ShopId { get; set; }
+    public Erp.Domain.Shops.Shop Shop { get; set; } = default!;
+
     public string QuotationNumber { get; set; } = default!;
     public string FinancialYear { get; set; } = default!;
 

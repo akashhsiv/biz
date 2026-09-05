@@ -1,9 +1,18 @@
+using Erp.Domain.Common;
+
 namespace Erp.Domain.System;
 
-/// <summary>Single-row table: the shop's own GST/company identity used on every document. No multi-entity support in v1 (confirmed).</summary>
-public class CompanySettings
+/// <summary>Per-shop branding/document profile: bank details, WhatsApp templates, terms & footer text.
+/// Was a single-row table pre-multi-shop; now a 1:1 child of Shop (ShopId is unique) — see the design
+/// note on Erp.Domain.Shops.Shop for why these fields stayed here instead of moving onto Shop itself.
+/// ShopName/Gstin/State/Address/ContactNumber below duplicate the same-named fields on Shop for now;
+/// that overlap is a known, deliberately deferred cleanup (see Shop.cs).</summary>
+public class CompanySettings : IShopScoped
 {
     public Guid Id { get; set; } = Guid.NewGuid();
+
+    public Guid ShopId { get; set; }
+    public Erp.Domain.Shops.Shop Shop { get; set; } = default!;
 
     public string ShopName { get; set; } = default!;
     public string Gstin { get; set; } = default!;

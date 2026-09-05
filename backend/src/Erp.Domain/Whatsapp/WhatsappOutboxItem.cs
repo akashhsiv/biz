@@ -3,9 +3,12 @@ using Erp.Domain.Common;
 namespace Erp.Domain.Whatsapp;
 
 /// <summary>Queued only when Admin explicitly clicks "Send via WhatsApp" (manual trigger, confirmed business rule) — never auto-queued on document creation. Consumed by a background worker independent of the transaction that created the referenced document.</summary>
-public class WhatsappOutboxItem
+public class WhatsappOutboxItem : IShopScoped
 {
     public Guid Id { get; set; } = Guid.NewGuid();
+
+    public Guid ShopId { get; set; }
+    public Erp.Domain.Shops.Shop Shop { get; set; } = default!;
 
     public WhatsappMessageType MessageType { get; set; }
     public DocumentReferenceType ReferenceType { get; set; }

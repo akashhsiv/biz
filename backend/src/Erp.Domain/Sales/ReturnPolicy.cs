@@ -3,8 +3,11 @@ using Erp.Domain.Items;
 
 namespace Erp.Domain.Sales;
 
-public class ReturnPolicy : BaseEntity
+public class ReturnPolicy : BaseEntity, IShopScoped
 {
+    public Guid ShopId { get; set; }
+    public Erp.Domain.Shops.Shop Shop { get; set; } = default!;
+
     public string Name { get; set; } = default!;
 
     /// <summary>Null means the policy applies to all categories.</summary>

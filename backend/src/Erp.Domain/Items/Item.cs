@@ -2,8 +2,11 @@ using Erp.Domain.Common;
 
 namespace Erp.Domain.Items;
 
-public class Item : BaseEntity
+public class Item : BaseEntity, IShopScoped
 {
+    public Guid ShopId { get; set; }
+    public Erp.Domain.Shops.Shop Shop { get; set; } = default!;
+
     public string Sku { get; set; } = default!;
     public string Name { get; set; } = default!;
     public Guid? CategoryId { get; set; }

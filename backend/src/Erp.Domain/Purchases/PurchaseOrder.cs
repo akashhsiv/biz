@@ -3,8 +3,11 @@ using Erp.Domain.Items;
 
 namespace Erp.Domain.Purchases;
 
-public class PurchaseOrder : BaseEntity
+public class PurchaseOrder : BaseEntity, IShopScoped
 {
+    public Guid ShopId { get; set; }
+    public Erp.Domain.Shops.Shop Shop { get; set; } = default!;
+
     public string PoNumber { get; set; } = default!;
     public string FinancialYear { get; set; } = default!;
 

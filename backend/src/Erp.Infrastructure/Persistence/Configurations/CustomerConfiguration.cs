@@ -15,8 +15,11 @@ public class CustomerConfiguration : IEntityTypeConfiguration<Customer>
         b.Property(x => x.GstNumber).HasMaxLength(20);
         b.Property(x => x.CreditLimit).HasPrecision(18, 2);
 
-        b.HasIndex(x => x.CustomerCode).IsUnique();
+        b.HasIndex(x => new { x.ShopId, x.CustomerCode }).IsUnique();
         b.HasIndex(x => x.GstNumber);
         b.HasIndex(x => x.Name);
+
+        b.HasOne(x => x.Shop).WithMany()
+            .HasForeignKey(x => x.ShopId).OnDelete(DeleteBehavior.Restrict);
     }
 }
