@@ -1,0 +1,10 @@
+{
+  "description": "Streamline retail operations with a user-friendly POS and inventory management app, designed for shop staff to efficiently handle sales, stock, and customer data.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}

@@ -1,0 +1,21 @@
+# .NET
+backend/**/bin/
+backend/**/obj/
+backend/**/chromium-cache/
+
+# Local secrets — never commit real credentials
+backend/src/Erp.Api/appsettings.Development.json
+backend/src/Erp.Api/appsettings.Production.json
+
+# Node (WhatsApp bridge)
+whatsapp-service/node_modules/
+whatsapp-service/auth-session/
+
+# Backups (should never be committed regardless of configured destination)
+*.dump
+
+# Editor/OS
+.vs/
+.vscode/
+*.user
+Thumbs.db

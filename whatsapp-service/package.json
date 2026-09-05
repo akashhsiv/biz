@@ -1,0 +1,17 @@
+{
+  "name": "erp-whatsapp-service",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Baileys-based WhatsApp bridge for the ERP Host. Decoupled from the .NET API — the Host queues messages to an outbox and this service delivers them when a WhatsApp session is linked.",
+  "main": "index.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@whiskeysockets/baileys": "^6.7.9",
+    "express": "^4.19.2",
+    "node-windows": "^1.0.0-beta.8",
+    "qrcode-terminal": "^0.12.0"
+  }
+}
