@@ -35,6 +35,11 @@ class Permissions {
   static const reportsFinanceView = 'reports.finance.view';
   static const reportsAllView = 'reports.all.view';
 
+  static const staffView = 'staff.view';
+  static const staffManage = 'staff.manage';
+  static const staffSalaryView = 'staff.salary.view';
+  static const staffSalaryPay = 'staff.salary.pay';
+
   static const usersManage = 'users.manage';
   static const rolesManage = 'roles.manage';
   static const auditLogsView = 'audit_logs.view';

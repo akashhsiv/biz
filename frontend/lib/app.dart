@@ -26,6 +26,7 @@ import 'features/returns/sales_returns_screen.dart';
 import 'features/settings/company_settings_screen.dart';
 import 'features/settings/shop_configuration_screen.dart';
 import 'features/shops/shop_gate.dart';
+import 'features/staff/staff_screen.dart';
 import 'features/shops/shops_provider.dart';
 import 'features/sales/sales_invoices_screen.dart';
 import 'features/stock/stock_screen.dart';
@@ -130,6 +131,12 @@ class ErpApp extends ConsumerWidget {
           icon: Icons.account_balance_outlined,
           requiredPermission: Permissions.financeShopBalanceView,
           builder: (_) => const FinanceScreen(),
+        ),
+        NavItem(
+          label: 'Staff',
+          icon: Icons.badge_outlined,
+          requiredPermission: Permissions.staffView,
+          builder: (_) => const StaffScreen(),
         ),
         NavItem(
           label: 'Expenses',
