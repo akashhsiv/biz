@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/network/api_result.dart';
 import '../../core/providers.dart';
 import 'stock_model.dart';
+import 'stock_movement_model.dart';
 
 final stockLevelsProvider = FutureProvider.autoDispose<List<StockLevel>>((ref) async {
   final api = ref.watch(apiClientProvider);

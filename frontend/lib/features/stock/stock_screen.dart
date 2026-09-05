@@ -13,6 +13,7 @@ import '../../shared/widgets/list_screen_shortcuts.dart';
 import '../../shared/widgets/page_header.dart';
 import '../../shared/widgets/skeleton_loader.dart';
 import 'stock_model.dart';
+import 'stock_movement_history_screen.dart';
 import 'stock_provider.dart';
 
 const _pageSize = 20;
@@ -32,6 +33,10 @@ class _StockScreenState extends ConsumerState<StockScreen> {
   void dispose() {
     _search.dispose();
     super.dispose();
+  }
+
+  void _openHistory(BuildContext context, StockLevel item) {
+    Navigator.of(context).push(MaterialPageRoute(builder: (_) => StockMovementHistoryScreen(item: item)));
   }
 
   @override
@@ -85,12 +90,13 @@ class _StockScreenState extends ConsumerState<StockScreen> {
                         AppListColumn('SKU', flex: 2),
                         AppListColumn('Name', flex: 4),
                         AppListColumn('Qty On Hand', flex: 2),
+                        AppListColumn('', flex: 1),
                       ],
                       itemCount: filtered.length,
                       itemsPerPage: _pageSize,
                       currentPage: _page,
                       onPageChange: (p) => setState(() => _page = p),
-                      onRowTap: (i) => showDialog(context: context, builder: (_) => _MovementsDialog(item: filtered[i])),
+                      onRowTap: (i) => _openHistory(context, filtered[i]),
                       cellsBuilder: (context, i) {
                         final l = filtered[i];
                         final isLow = l.quantityOnHand <= 5;
@@ -106,6 +112,11 @@ class _StockScreenState extends ConsumerState<StockScreen> {
                               ],
                             ],
                           ),
+                          IconButton(
+                            onPressed: () => _openHistory(context, l),
+                            icon: const Icon(Icons.history, size: 18),
+                            tooltip: 'View movement history',
+                          ),
                         ];
                       },
                     );
@@ -118,41 +129,6 @@ class _StockScreenState extends ConsumerState<StockScreen> {
           ),
         ),
       ),
-    );
-  }
-}
-
-class _MovementsDialog extends ConsumerWidget {
-  final StockLevel item;
-  const _MovementsDialog({required this.item});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final movementsAsync = ref.watch(stockMovementsProvider(item.itemId));
-
-    return AlertDialog(
-      title: Text('${item.name} — Movements'),
-      content: SizedBox(
-        width: 420,
-        height: 400,
-        child: movementsAsync.when(
-          data: (movements) => ListView.separated(
-            itemCount: movements.length,
-            separatorBuilder: (_, _) => const Divider(height: 1),
-            itemBuilder: (_, i) {
-              final m = movements[i];
-              return ListTile(
-                dense: true,
-                title: Text('${movementTypeNames[m.movementType]} ${m.quantityDelta > 0 ? "+" : ""}${m.quantityDelta.toStringAsFixed(2)}'),
-                subtitle: Text('${m.createdAt.toLocal()} · after: ${m.quantityAfter.toStringAsFixed(2)}${m.reason != null ? " · ${m.reason}" : ""}'),
-              );
-            },
-          ),
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, _) => Text('Failed to load movements: $e'),
-        ),
-      ),
-      actions: [TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Close'))],
     );
   }
 }
