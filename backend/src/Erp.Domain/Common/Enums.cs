@@ -202,7 +202,21 @@ public enum NotificationEventType
     LowStock,
     PurchaseDue,
     PurchaseOverdue,
-    CustomerOutstanding
+    CustomerOutstanding,
+    SalesPaymentDue,
+    SalesPaymentOverdue
+}
+
+/// <summary>Unified Full/Partial/Credit payment-status concept shared by SalesInvoice.PaymentStatus and
+/// PurchaseOrder.BalancePaymentStatus — see DocumentPaymentStatusCalculator, the single place that
+/// derives one of these from (grandTotal, outstandingTotal, dueDate). Deliberately independent from
+/// PurchasePaymentStatus, which tracks a different workflow (payment-record lifecycle, not balance-owed).</summary>
+public enum DocumentPaymentStatus
+{
+    Paid,
+    PartiallyPaid,
+    Credit,
+    Overdue
 }
 
 public enum NotificationEventStatus

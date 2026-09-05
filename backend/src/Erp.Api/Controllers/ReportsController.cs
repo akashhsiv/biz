@@ -41,13 +41,15 @@ public class ReportsController(ErpDbContext db) : ControllerBase
 {
     [HttpGet("sales")]
     [RequirePermission(PermissionKeys.ReportsSalesView)]
-    public async Task<ActionResult<SalesSummaryDto>> Sales([FromQuery] DateTime? from, [FromQuery] DateTime? to, CancellationToken ct)
+    public async Task<ActionResult<SalesSummaryDto>> Sales([FromQuery] DateTime? from, [FromQuery] DateTime? to, [FromQuery] DocumentPaymentStatus? paymentStatus, CancellationToken ct)
     {
         var (start, end) = Range(from, to);
 
-        var invoices = await db.SalesInvoices.Include(i => i.Lines)
-            .Where(i => i.Status == SalesInvoiceStatus.Active && i.CreatedAt >= start && i.CreatedAt < end)
-            .ToListAsync(ct);
+        var invoicesQuery = db.SalesInvoices.Include(i => i.Lines)
+            .Where(i => i.Status == SalesInvoiceStatus.Active && i.CreatedAt >= start && i.CreatedAt < end);
+        if (paymentStatus is { } ps) invoicesQuery = invoicesQuery.Where(i => i.PaymentStatus == ps);
+
+        var invoices = await invoicesQuery.ToListAsync(ct);
 
         var quotationCount = await db.Quotations.CountAsync(q => q.CreatedAt >= start && q.CreatedAt < end, ct);
         var proformaCount = await db.ProformaInvoices.CountAsync(p => p.CreatedAt >= start && p.CreatedAt < end, ct);
@@ -69,15 +71,21 @@ public class ReportsController(ErpDbContext db) : ControllerBase
 
     [HttpGet("purchase")]
     [RequirePermission(PermissionKeys.ReportsPurchaseView)]
-    public async Task<ActionResult<PurchaseSummaryDto>> Purchase([FromQuery] DateTime? from, [FromQuery] DateTime? to, CancellationToken ct)
+    public async Task<ActionResult<PurchaseSummaryDto>> Purchase([FromQuery] DateTime? from, [FromQuery] DateTime? to, [FromQuery] DocumentPaymentStatus? paymentStatus, CancellationToken ct)
     {
         var (start, end) = Range(from, to);
 
-        var orders = await db.PurchaseOrders.Where(o => o.CreatedAt >= start && o.CreatedAt < end).ToListAsync(ct);
+        var ordersQuery = db.PurchaseOrders.Where(o => o.CreatedAt >= start && o.CreatedAt < end);
+        if (paymentStatus is { } ps) ordersQuery = ordersQuery.Where(o => o.BalancePaymentStatus == ps);
+
+        var orders = await ordersQuery.ToListAsync(ct);
         var supplierNames = await db.Suppliers.ToDictionaryAsync(s => s.Id, s => s.Name, ct);
 
         var statusCounts = orders.GroupBy(o => o.Status.ToString()).ToDictionary(g => g.Key, g => g.Count());
-        var paymentStatusCounts = orders.GroupBy(o => o.PaymentStatus.ToString()).ToDictionary(g => g.Key, g => g.Count());
+        // Changed from the old workflow PaymentStatus (PurchasePaymentStatus: Processing/Completed/Cancelled)
+        // to the new balance-owed BalancePaymentStatus (DocumentPaymentStatus: Paid/PartiallyPaid/Credit/Overdue) —
+        // this is what the report's "payment status" filter/breakdown means going forward.
+        var paymentStatusCounts = orders.GroupBy(o => o.BalancePaymentStatus.ToString()).ToDictionary(g => g.Key, g => g.Count());
 
         var bySupplier = orders.GroupBy(o => o.SupplierId)
             .Select(g => new PurchaseBySupplierRow(g.Key, supplierNames.GetValueOrDefault(g.Key, "?"), g.Sum(o => o.GrandTotal), g.Count()))

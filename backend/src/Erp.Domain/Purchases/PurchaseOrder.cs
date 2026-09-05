@@ -25,6 +25,15 @@ public class PurchaseOrder : BaseEntity, IShopScoped
     /// <summary>Independent from Status — driven by PurchasePayment completion, not by goods-received completeness.</summary>
     public PurchasePaymentStatus PaymentStatus { get; set; } = PurchasePaymentStatus.Processing;
 
+    /// <summary>Unified Full/Partial/Credit/Overdue balance status — deliberately a DIFFERENT concept
+    /// from PaymentStatus above (that tracks the payment-record workflow; this tracks money owed against
+    /// DueDate). Stored, recomputed via DocumentPaymentStatusCalculator whenever a PurchasePayment is
+    /// recorded/completed or the PO is cancelled.</summary>
+    public DocumentPaymentStatus BalancePaymentStatus { get; set; } = DocumentPaymentStatus.Credit;
+
+    /// <summary>Stored, recomputed alongside BalancePaymentStatus = GrandTotal minus completed payments.</summary>
+    public decimal OutstandingTotal { get; set; }
+
     public decimal Subtotal { get; set; }
     public decimal TaxTotal { get; set; }
     public decimal GrandTotal { get; set; }

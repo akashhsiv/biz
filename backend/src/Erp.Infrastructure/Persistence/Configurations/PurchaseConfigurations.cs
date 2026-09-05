@@ -30,6 +30,7 @@ public class PurchaseOrderConfiguration : IEntityTypeConfiguration<PurchaseOrder
         b.Property(x => x.Subtotal).HasPrecision(18, 2);
         b.Property(x => x.TaxTotal).HasPrecision(18, 2);
         b.Property(x => x.GrandTotal).HasPrecision(18, 2);
+        b.Property(x => x.OutstandingTotal).HasPrecision(18, 2);
 
         b.HasIndex(x => new { x.ShopId, x.PoNumber }).IsUnique();
 

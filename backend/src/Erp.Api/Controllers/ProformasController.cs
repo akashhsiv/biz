@@ -112,11 +112,11 @@ public class ProformasController(
     /// <summary>"Clear Dues" — once outstanding is zero, the proforma becomes a Sales Invoice. Stock already moved at proforma creation, so it is not moved again — ARCHITECTURE.md §21/§23.</summary>
     [HttpPost("{id:guid}/convert")]
     [RequirePermission(PermissionKeys.ProformasManage)]
-    public async Task<ActionResult<ConvertQuotationResultDto>> Convert(Guid id, CancellationToken ct)
+    public async Task<ActionResult<ConvertQuotationResultDto>> Convert(Guid id, [FromQuery] DateTime? dueDate, CancellationToken ct)
     {
         const string endpoint = "POST /api/proformas/{id}/convert";
         var key = IdempotencyGuard.RequireKey(Request);
-        var hash = IdempotencyGuard.HashRequest(new { id });
+        var hash = IdempotencyGuard.HashRequest(new { id, dueDate });
 
         var replay = await idempotency.FindReplayAsync(key, endpoint, hash, ct);
         if (replay is not null)
@@ -146,6 +146,7 @@ public class ProformasController(
             TaxTotal = proforma.TaxTotal,
             GrandTotal = proforma.GrandTotal,
             DepositAllocatedTotal = proforma.AllocatedTotal,
+            DueDate = dueDate,
             PlaceOfSupply = proforma.PlaceOfSupply,
             Lines = proforma.Lines.Select(l => new SalesInvoiceLine
             {
@@ -162,6 +163,9 @@ public class ProformasController(
                 HsnCode = l.HsnCode,
             }).ToList(),
         };
+
+        invoice.OutstandingTotal = Math.Max(0, invoice.GrandTotal - invoice.DepositAllocatedTotal);
+        invoice.PaymentStatus = Erp.Application.Common.DocumentPaymentStatusCalculator.Calculate(invoice.GrandTotal, invoice.OutstandingTotal, invoice.DueDate, DateTime.UtcNow);
 
         db.SalesInvoices.Add(invoice);
         proforma.Status = ProformaStatus.Converted;

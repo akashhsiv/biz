@@ -18,7 +18,7 @@ public record PurchaseOrderLineRequest(Guid ItemId, decimal QuantityOrdered, dec
 public record CreatePurchaseOrderRequest(Guid SupplierId, List<PurchaseOrderLineRequest> Lines);
 
 public record PurchaseOrderLineDto(Guid Id, Guid ItemId, decimal QuantityOrdered, decimal QuantityReceived, decimal Rate, decimal TaxRatePercent, decimal Cgst, decimal Sgst, decimal Igst, decimal LineTotal);
-public record PurchaseOrderDto(Guid Id, string PoNumber, Guid SupplierId, PurchaseOrderStatus Status, PurchasePaymentStatus PaymentStatus, decimal Subtotal, decimal TaxTotal, decimal GrandTotal, List<PurchaseOrderLineDto> Lines, List<PurchasePaymentDto> Payments, DateTime CreatedAt, Guid CreatedBy);
+public record PurchaseOrderDto(Guid Id, string PoNumber, Guid SupplierId, PurchaseOrderStatus Status, PurchasePaymentStatus PaymentStatus, DateTime? DueDate, DocumentPaymentStatus BalancePaymentStatus, decimal OutstandingTotal, decimal Subtotal, decimal TaxTotal, decimal GrandTotal, List<PurchaseOrderLineDto> Lines, List<PurchasePaymentDto> Payments, DateTime CreatedAt, Guid CreatedBy);
 
 public record PurchaseReceiptLineRequest(Guid PoLineId, decimal QuantityReceived, string? BatchNumber, DateTime? ExpiryDate, List<string>? SerialNumbers);
 public record CreatePurchaseReceiptRequest(List<PurchaseReceiptLineRequest> Lines);
@@ -126,6 +126,9 @@ public class PurchaseOrdersController(
             GrandTotal = subtotal + taxTotal,
             Lines = lines,
         };
+
+        order.OutstandingTotal = order.GrandTotal;
+        order.BalancePaymentStatus = Erp.Application.Common.DocumentPaymentStatusCalculator.Calculate(order.GrandTotal, order.OutstandingTotal, order.DueDate, DateTime.UtcNow);
 
         db.PurchaseOrders.Add(order);
         await audit.LogAsync("po.created", nameof(PurchaseOrder), order.Id, newValue: new { order.PoNumber, order.GrandTotal }, ct: ct);
@@ -243,6 +246,16 @@ public class PurchaseOrdersController(
         var hasAnyReceipt = order.Lines.Any(l => l.QuantityReceived > 0);
         order.Status = hasAnyReceipt ? PurchaseOrderStatus.PartiallyCompleted : PurchaseOrderStatus.Cancelled;
 
+        // Judgment call, mirroring SalesInvoice cancellation: a fully-Cancelled PO owes nothing further.
+        // A PartiallyCompleted PO (some goods received, cancel only closes the remainder) still tracks
+        // its real outstanding balance against what was actually received, so only force-settle when the
+        // whole PO is Cancelled outright.
+        if (order.Status == PurchaseOrderStatus.Cancelled)
+        {
+            order.OutstandingTotal = 0;
+            order.BalancePaymentStatus = DocumentPaymentStatus.Paid;
+        }
+
         await audit.LogAsync("po.status_changed", nameof(PurchaseOrder), order.Id, reason: request.Reason, newValue: order.Status, ct: ct);
         await db.SaveChangesAsync(ct);
 
@@ -268,6 +281,9 @@ public class PurchaseOrdersController(
 
         db.PurchasePayments.Add(payment);
         order.PaymentStatus = PurchasePaymentStatus.Processing;
+        // A newly-created payment starts Processing, not Completed, so it doesn't change the balance
+        // outstanding yet — OutstandingTotal/BalancePaymentStatus only move once a payment is completed
+        // (see CompletePayment below) or the PO is cancelled.
 
         await audit.LogAsync("payment.created", nameof(PurchasePayment), payment.Id, newValue: new { order.PoNumber, request.Amount }, ct: ct);
         await db.SaveChangesAsync(ct);
@@ -300,6 +316,10 @@ public class PurchaseOrdersController(
             ? PurchasePaymentStatus.Completed
             : PurchasePaymentStatus.Processing;
 
+        var paidTotal = order.Payments.Where(p => p.Status == PurchasePaymentStatus.Completed).Sum(p => p.Amount);
+        order.OutstandingTotal = Math.Max(0, order.GrandTotal - paidTotal);
+        order.BalancePaymentStatus = Erp.Application.Common.DocumentPaymentStatusCalculator.Calculate(order.GrandTotal, order.OutstandingTotal, order.DueDate, DateTime.UtcNow);
+
         await audit.LogAsync("payment.status_changed", nameof(PurchasePayment), payment.Id, newValue: payment.Status, ct: ct);
 
         await db.SaveChangesAsync(ct);
@@ -309,7 +329,7 @@ public class PurchaseOrdersController(
     }
 
     private static PurchaseOrderDto ToDto(PurchaseOrder o) => new(
-        o.Id, o.PoNumber, o.SupplierId, o.Status, o.PaymentStatus, o.Subtotal, o.TaxTotal, o.GrandTotal,
+        o.Id, o.PoNumber, o.SupplierId, o.Status, o.PaymentStatus, o.DueDate, o.BalancePaymentStatus, o.OutstandingTotal, o.Subtotal, o.TaxTotal, o.GrandTotal,
         o.Lines.Select(l => new PurchaseOrderLineDto(l.Id, l.ItemId, l.QuantityOrdered, l.QuantityReceived, l.Rate, l.TaxRatePercent, l.CgstAmount, l.SgstAmount, l.IgstAmount, l.LineTotal)).ToList(),
         o.Payments.Select(p => new PurchasePaymentDto(p.Id, p.PurchaseOrderId, p.Amount, p.Status, p.PaymentMethod)).ToList(),
         o.CreatedAt, o.CreatedBy);

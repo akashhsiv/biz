@@ -23,4 +23,10 @@ public class ShopNotificationSettings : BaseEntity, IShopScoped
 
     public bool CustomerOutstandingWhatsapp { get; set; }
     public bool CustomerOutstandingMobile { get; set; } = true;
+
+    public bool SalesPaymentDueWhatsapp { get; set; } = true;
+    public bool SalesPaymentDueMobile { get; set; } = true;
+
+    public bool SalesPaymentOverdueWhatsapp { get; set; } = true;
+    public bool SalesPaymentOverdueMobile { get; set; } = true;
 }

@@ -1,6 +1,7 @@
 using Erp.Application.Notifications;
 using Erp.Domain.Common;
 using Erp.Domain.Purchases;
+using Erp.Domain.Sales;
 using Erp.Infrastructure.Persistence;
 using Erp.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
@@ -92,6 +93,91 @@ public class NotificationCheckWorker(IServiceScopeFactory scopeFactory, IConfigu
         }
 
         if (overdue.Count > 0) await db.SaveChangesAsync(ct);
+
+        await RunPurchaseDueSweepAsync(db, notificationEvents, now, ct);
+        await RunSalesPaymentSweepAsync(db, notificationEvents, now, ct);
+    }
+
+    /// <summary>PurchaseDue: PurchaseOrders whose DueDate falls within the next N days (not yet passed —
+    /// once passed it's the PurchaseOverdue sweep above's job) with an outstanding balance still owed.
+    /// Same 24h duplicate-prevention pattern as PurchaseOverdue.</summary>
+    private async Task RunPurchaseDueSweepAsync(ErpDbContext db, INotificationEventService notificationEvents, DateTime now, CancellationToken ct)
+    {
+        var dueSoonDays = configuration.GetValue("Notifications:DueSoonDays", 3);
+        var horizon = now.AddDays(dueSoonDays);
+
+        var dueSoon = await db.PurchaseOrders
+            .Include(po => po.Supplier)
+            .Include(po => po.Payments)
+            .Where(po => po.DueDate != null && po.DueDate >= now && po.DueDate <= horizon && po.Status != PurchaseOrderStatus.Cancelled)
+            .ToListAsync(ct);
+
+        var raised = 0;
+        foreach (var po in dueSoon)
+        {
+            var paid = po.Payments.Where(p => p.Status == PurchasePaymentStatus.Completed).Sum(p => p.Amount);
+            var outstanding = po.GrandTotal - paid;
+            if (outstanding <= 0) continue;
+
+            var alreadyRaisedRecently = await db.NotificationEvents.AnyAsync(e =>
+                e.ReferenceType == DocumentReferenceType.PurchaseOrder &&
+                e.ReferenceId == po.Id &&
+                e.EventType == NotificationEventType.PurchaseDue &&
+                e.CreatedAt > now.AddHours(-24), ct);
+            if (alreadyRaisedRecently) continue;
+
+            await notificationEvents.CreateEventAsync(po.ShopId, NotificationEventType.PurchaseDue, new
+            {
+                purchaseOrderId = po.Id,
+                poNumber = po.PoNumber,
+                supplierName = po.Supplier.Name,
+                outstanding,
+                dueDate = po.DueDate,
+            }, referenceType: DocumentReferenceType.PurchaseOrder, referenceId: po.Id, ct: ct);
+            raised++;
+        }
+
+        if (raised > 0) await db.SaveChangesAsync(ct);
+    }
+
+    /// <summary>SalesPaymentDue (DueDate within the next N days, not yet passed) and SalesPaymentOverdue
+    /// (DueDate already passed), both gated on OutstandingTotal > 0. Same 24h duplicate-prevention
+    /// pattern as the PurchaseOverdue sweep above.</summary>
+    private async Task RunSalesPaymentSweepAsync(ErpDbContext db, INotificationEventService notificationEvents, DateTime now, CancellationToken ct)
+    {
+        var dueSoonDays = configuration.GetValue("Notifications:DueSoonDays", 3);
+        var horizon = now.AddDays(dueSoonDays);
+
+        var candidates = await db.SalesInvoices
+            .Include(i => i.Customer)
+            .Where(i => i.DueDate != null && i.OutstandingTotal > 0 && i.Status != SalesInvoiceStatus.Cancelled && i.DueDate <= horizon)
+            .ToListAsync(ct);
+
+        var raised = 0;
+        foreach (var invoice in candidates)
+        {
+            var isOverdue = invoice.DueDate!.Value < now;
+            var eventType = isOverdue ? NotificationEventType.SalesPaymentOverdue : NotificationEventType.SalesPaymentDue;
+
+            var alreadyRaisedRecently = await db.NotificationEvents.AnyAsync(e =>
+                e.ReferenceType == DocumentReferenceType.SalesInvoice &&
+                e.ReferenceId == invoice.Id &&
+                e.EventType == eventType &&
+                e.CreatedAt > now.AddHours(-24), ct);
+            if (alreadyRaisedRecently) continue;
+
+            await notificationEvents.CreateEventAsync(invoice.ShopId, eventType, new
+            {
+                salesInvoiceId = invoice.Id,
+                invoiceNumber = invoice.InvoiceNumber,
+                customerName = invoice.Customer.Name,
+                outstanding = invoice.OutstandingTotal,
+                dueDate = invoice.DueDate,
+            }, referenceType: DocumentReferenceType.SalesInvoice, referenceId: invoice.Id, ct: ct);
+            raised++;
+        }
+
+        if (raised > 0) await db.SaveChangesAsync(ct);
     }
 
     private async Task RunDispatchAsync(CancellationToken ct)

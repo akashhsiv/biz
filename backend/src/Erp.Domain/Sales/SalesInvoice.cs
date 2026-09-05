@@ -28,6 +28,21 @@ public class SalesInvoice : BaseEntity, IShopScoped
 
     public decimal DepositAllocatedTotal { get; set; }
 
+    /// <summary>Optional payment due date, flowing from an optional parameter on quotation/proforma
+    /// conversion — null for invoices created before this field existed, and for any invoice created
+    /// without one. Used by NotificationCheckWorker's daily sweep (SalesPaymentDue/SalesPaymentOverdue)
+    /// and by DocumentPaymentStatusCalculator.</summary>
+    public DateTime? DueDate { get; set; }
+
+    /// <summary>Stored, recomputed via DocumentPaymentStatusCalculator whenever DepositAllocatedTotal
+    /// changes (creation, deposit allocation/reversal) or the invoice is cancelled — never computed ad hoc.</summary>
+    public decimal OutstandingTotal { get; set; }
+
+    /// <summary>Stored, recomputed alongside OutstandingTotal — see DocumentPaymentStatusCalculator.
+    /// Unrelated to Status (Active/Cancelled): a Cancelled invoice is forced to Paid/0-outstanding since
+    /// nothing is owed on it any more.</summary>
+    public DocumentPaymentStatus PaymentStatus { get; set; } = DocumentPaymentStatus.Credit;
+
     /// <summary>Required when Status is Cancelled (Admin-only, per confirmed business rule).</summary>
     public string? CancellationReason { get; set; }
 

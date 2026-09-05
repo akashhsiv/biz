@@ -144,6 +144,7 @@ public class SalesInvoiceConfiguration : IEntityTypeConfiguration<SalesInvoice>
         b.Property(x => x.TaxTotal).HasPrecision(18, 2);
         b.Property(x => x.GrandTotal).HasPrecision(18, 2);
         b.Property(x => x.DepositAllocatedTotal).HasPrecision(18, 2);
+        b.Property(x => x.OutstandingTotal).HasPrecision(18, 2);
     }
 }
 

@@ -16,6 +16,7 @@ namespace Erp.Api.Controllers;
 public record SalesInvoiceDto(
     Guid Id, string InvoiceNumber, Guid CustomerId, SalesInvoiceSourceType SourceType, SalesInvoiceStatus Status,
     decimal Subtotal, decimal OverallDiscountAmount, decimal TaxTotal, decimal GrandTotal, decimal DepositAllocatedTotal,
+    DateTime? DueDate, decimal OutstandingTotal, DocumentPaymentStatus PaymentStatus,
     List<DocumentLineDto> Lines, string? CancellationReason, string? PlaceOfSupply, DateTime CreatedAt, Guid CreatedBy);
 
 public record CancelSalesInvoiceRequest(string Reason);
@@ -99,6 +100,10 @@ public class SalesInvoicesController(ErpDbContext db, IAuditService audit, IFina
 
         invoice.Status = SalesInvoiceStatus.Cancelled;
         invoice.CancellationReason = request.Reason;
+        // Judgment call: a cancelled invoice owes nothing further — force Outstanding/PaymentStatus to
+        // the settled state rather than leaving a stale Credit/PartiallyPaid label hanging around.
+        invoice.OutstandingTotal = 0;
+        invoice.PaymentStatus = Erp.Domain.Common.DocumentPaymentStatus.Paid;
 
         await audit.LogAsync("sales_invoice.cancelled", nameof(SalesInvoice), invoice.Id, reason: request.Reason, ct: ct);
 
@@ -110,6 +115,7 @@ public class SalesInvoicesController(ErpDbContext db, IAuditService audit, IFina
 
     private static SalesInvoiceDto ToDto(SalesInvoice i) => new(
         i.Id, i.InvoiceNumber, i.CustomerId, i.SourceType, i.Status, i.Subtotal, i.OverallDiscountAmount, i.TaxTotal, i.GrandTotal, i.DepositAllocatedTotal,
+        i.DueDate, i.OutstandingTotal, i.PaymentStatus,
         i.Lines.Select(l => new DocumentLineDto(l.Id, l.ItemId, l.Description, l.Quantity, l.Rate, l.Discount, l.TaxRatePercent, l.CgstAmount, l.SgstAmount, l.IgstAmount, l.LineTotal, Erp.Api.Common.SerialNumbersCsv.Parse(l.SerialNumbersCsv), l.HsnCode)).ToList(),
         i.CancellationReason, i.PlaceOfSupply, i.CreatedAt, i.CreatedBy);
 }

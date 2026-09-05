@@ -98,6 +98,8 @@ public class NotificationDispatcher(ErpDbContext db, ILogger<NotificationDispatc
         NotificationEventType.PurchaseDue => (s.PurchaseDueWhatsapp, s.PurchaseDueMobile),
         NotificationEventType.PurchaseOverdue => (s.PurchaseOverdueWhatsapp, s.PurchaseOverdueMobile),
         NotificationEventType.CustomerOutstanding => (s.CustomerOutstandingWhatsapp, s.CustomerOutstandingMobile),
+        NotificationEventType.SalesPaymentDue => (s.SalesPaymentDueWhatsapp, s.SalesPaymentDueMobile),
+        NotificationEventType.SalesPaymentOverdue => (s.SalesPaymentOverdueWhatsapp, s.SalesPaymentOverdueMobile),
         _ => (false, false),
     };
 
@@ -105,6 +107,8 @@ public class NotificationDispatcher(ErpDbContext db, ILogger<NotificationDispatc
     {
         NotificationEventType.LowStock => $"Low stock alert: {evt.PayloadJson}",
         NotificationEventType.PurchaseOverdue => $"Purchase overdue: {evt.PayloadJson}",
+        NotificationEventType.SalesPaymentDue => $"Payment due soon: {evt.PayloadJson}",
+        NotificationEventType.SalesPaymentOverdue => $"Payment overdue: {evt.PayloadJson}",
         _ => evt.PayloadJson,
     };
 }

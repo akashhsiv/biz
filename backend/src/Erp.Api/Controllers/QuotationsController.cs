@@ -164,11 +164,11 @@ public class QuotationsController(
     /// <summary>The core business decision from ARCHITECTURE.md §20-24: deposit >= grand total becomes a Sales Invoice, otherwise a Proforma Invoice, atomically with stock deduction, deposit allocation, and audit logging.</summary>
     [HttpPost("{id:guid}/convert")]
     [RequirePermission(PermissionKeys.QuotationsManage)]
-    public async Task<ActionResult<ConvertQuotationResultDto>> Convert(Guid id, CancellationToken ct)
+    public async Task<ActionResult<ConvertQuotationResultDto>> Convert(Guid id, [FromQuery] DateTime? dueDate, CancellationToken ct)
     {
         const string endpoint = "POST /api/quotations/{id}/convert";
         var key = IdempotencyGuard.RequireKey(Request);
-        var hash = IdempotencyGuard.HashRequest(new { id });
+        var hash = IdempotencyGuard.HashRequest(new { id, dueDate });
 
         var replay = await idempotency.FindReplayAsync(key, endpoint, hash, ct);
         if (replay is not null)
@@ -187,7 +187,7 @@ public class QuotationsController(
 
         if (available >= quotation.GrandTotal)
         {
-            result = await ConvertToSalesInvoiceAsync(quotation, ct);
+            result = await ConvertToSalesInvoiceAsync(quotation, dueDate, ct);
         }
         else
         {
@@ -206,7 +206,7 @@ public class QuotationsController(
         return Ok(result);
     }
 
-    private async Task<ConvertQuotationResultDto> ConvertToSalesInvoiceAsync(Quotation quotation, CancellationToken ct)
+    private async Task<ConvertQuotationResultDto> ConvertToSalesInvoiceAsync(Quotation quotation, DateTime? dueDate, CancellationToken ct)
     {
         var invoiceNumber = await documentNumbers.NextNumberAsync("sales_invoice", "INV", ct);
 
@@ -225,6 +225,7 @@ public class QuotationsController(
             TaxTotal = quotation.TaxTotal,
             GrandTotal = quotation.GrandTotal,
             DepositAllocatedTotal = quotation.GrandTotal,
+            DueDate = dueDate,
             PlaceOfSupply = quotation.PlaceOfSupply,
             Lines = quotation.Lines.Select(l => new SalesInvoiceLine
             {
@@ -242,6 +243,9 @@ public class QuotationsController(
                 HsnCode = l.HsnCode,
             }).ToList(),
         };
+
+        invoice.OutstandingTotal = Math.Max(0, invoice.GrandTotal - invoice.DepositAllocatedTotal);
+        invoice.PaymentStatus = Erp.Application.Common.DocumentPaymentStatusCalculator.Calculate(invoice.GrandTotal, invoice.OutstandingTotal, invoice.DueDate, DateTime.UtcNow);
 
         db.SalesInvoices.Add(invoice);
 
