@@ -11,6 +11,13 @@ backend/src/Erp.Api/appsettings.Production.json
 whatsapp-service/node_modules/
 whatsapp-service/auth-session/
 
+# Build outputs — staged/compiled by deploy/build-release.ps1 and NSIS, never source
+deploy/dist/
+deploy/host/*.exe
+deploy/slave/*.exe
+frontend/build/
+frontend/windows/flutter/ephemeral/
+
 # Backups (should never be committed regardless of configured destination)
 *.dump
 

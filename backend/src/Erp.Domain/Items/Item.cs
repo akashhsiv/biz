@@ -19,6 +19,8 @@ public class Item : BaseEntity, IShopScoped
     public string? HsnCode { get; set; }
     public bool IsActive { get; set; } = true;
 
+    public byte[]? Image { get; set; }
+
     /// <summary>Threshold for the LOW_STOCK notification event (Biz_Product_Requirements.md §16) — the
     /// stock adjustment handler raises the event when QuantityOnHand drops to/under this value. Null
     /// means the item has no configured threshold, so low-stock checking is skipped for it.</summary>

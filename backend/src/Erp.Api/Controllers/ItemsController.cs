@@ -11,11 +11,13 @@ namespace Erp.Api.Controllers;
 
 public record ItemDto(
     Guid Id, string Sku, string Name, Guid? CategoryId, string Unit, ItemKind ItemKind,
-    decimal PurchasePrice, decimal SellingPrice, decimal TaxRatePercent, string? HsnCode, bool IsBatchTracked, bool IsSerialTracked, bool IsActive, decimal StockOnHand, decimal? MinimumStock);
+    decimal PurchasePrice, decimal SellingPrice, decimal TaxRatePercent, string? HsnCode, bool IsBatchTracked, bool IsSerialTracked, bool IsActive, decimal StockOnHand, decimal? MinimumStock, bool HasImage);
 
 public record UpsertItemRequest(
     string Sku, string Name, Guid? CategoryId, string Unit, ItemKind ItemKind,
     decimal PurchasePrice, decimal SellingPrice, decimal TaxRatePercent, string? HsnCode, bool IsBatchTracked, bool IsSerialTracked, decimal? MinimumStock = null);
+
+public record UpdateItemImageRequest(string ImageBase64);
 
 public record AvailableSerialDto(Guid Id, string SerialNumber, DateTime ReceivedDate);
 
@@ -58,6 +60,37 @@ public class ItemsController(ErpDbContext db, IAuditService audit) : ControllerB
             .ToListAsync(ct);
 
         return Ok(serials);
+    }
+
+    [HttpGet("{id:guid}/image")]
+    [RequirePermission(PermissionKeys.ItemsView)]
+    public async Task<IActionResult> GetImage(Guid id, CancellationToken ct)
+    {
+        var item = await db.Items.AsNoTracking().FirstOrDefaultAsync(i => i.Id == id, ct)
+            ?? throw new NotFoundAppException(nameof(Item), id);
+        if (item.Image is null) return NotFound();
+
+        return File(item.Image, "image/png");
+    }
+
+    [HttpPut("{id:guid}/image")]
+    [RequirePermission(PermissionKeys.ItemsManage)]
+    public async Task<IActionResult> UpdateImage(Guid id, UpdateItemImageRequest request, CancellationToken ct)
+    {
+        var item = await db.Items.FirstOrDefaultAsync(i => i.Id == id, ct)
+            ?? throw new NotFoundAppException(nameof(Item), id);
+
+        try
+        {
+            item.Image = Convert.FromBase64String(request.ImageBase64);
+        }
+        catch (FormatException)
+        {
+            throw new ValidationAppException("ImageBase64 is not valid base64 image data.");
+        }
+
+        await db.SaveChangesAsync(ct);
+        return NoContent();
     }
 
     [HttpPost]
@@ -146,5 +179,5 @@ public class ItemsController(ErpDbContext db, IAuditService audit) : ControllerB
 
     private static ItemDto ToDto(Item i) => new(
         i.Id, i.Sku, i.Name, i.CategoryId, i.Unit, i.ItemKind, i.PurchasePrice, i.SellingPrice,
-        i.TaxRatePercent, i.HsnCode, i.IsBatchTracked, i.IsSerialTracked, i.IsActive, i.StockBalance?.QuantityOnHand ?? 0, i.MinimumStock);
+        i.TaxRatePercent, i.HsnCode, i.IsBatchTracked, i.IsSerialTracked, i.IsActive, i.StockBalance?.QuantityOnHand ?? 0, i.MinimumStock, i.Image is not null);
 }
