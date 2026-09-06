@@ -1,11 +1,11 @@
 @echo off
-REM ERP Slave/Host-desktop installer (batch) — copies the Flutter Windows build to Program Files
-REM and creates Start Menu + Desktop shortcuts. This same script installs either build variant
-REM (APP_VARIANT=host or =slave, see app_variant.dart) — only the app\ payload differs; there's
-REM no separate install logic per variant.
+REM ERP desktop client installer (batch) — copies the Flutter Windows build to Program Files
+REM and creates Start Menu + Desktop shortcuts. One client app for every install; role-based
+REM permissions (see PermissionKeys.cs) decide what a signed-in user can do, so there's no
+REM separate install logic per variant.
 REM
 REM Expected layout (this file must sit next to app\ — build-release.ps1 produces this in
-REM deploy\dist\slave-package\ and deploy\dist\slave-host-package\):
+REM deploy\dist\client-package\):
 REM   install.bat            (this file)
 REM   uninstall.bat
 REM   app\                   flutter build windows output (erp_client.exe, data\, ...)
@@ -14,7 +14,7 @@ REM Usage: run as Administrator, from wherever the package was extracted/install
 
 setlocal EnableExtensions
 
-set "INSTALL_DIR=%ProgramFiles%\ErpSlave"
+set "INSTALL_DIR=%ProgramFiles%\ErpApp"
 set "SRC_DIR=%~dp0app"
 
 if not exist "%SRC_DIR%\erp_client.exe" (
@@ -33,6 +33,5 @@ REM PowerShell/WScript.Shell succeeding in whatever context this script runs und
 echo.
 echo === Install complete ===
 echo Shortcut created on the Desktop and in the Start Menu.
-echo First launch will ask for the Host's LAN address (e.g. 192.168.1.100:5000) unless this is
-echo the host-variant build, which defaults to localhost:5000.
+echo First launch will ask for the backend's address (e.g. https://your-erp-backend.example.com).
 endlocal

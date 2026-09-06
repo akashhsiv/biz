@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:window_manager/window_manager.dart';
 
-import '../../core/constants/app_variant.dart';
 import '../../core/theme/app_theme.dart';
 
 /// Replaces the native Windows title bar (confirmed decision 2026-08-28): sidebar-themed, draggable,
@@ -67,7 +66,7 @@ class _CustomTitleBarState extends State<CustomTitleBar> with WindowListener {
             const SizedBox(width: 12),
             const Icon(Icons.storefront, size: 15, color: Colors.white),
             const SizedBox(width: 8),
-            Text(AppVariant.appTitle, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
+            Text('ERP', style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
             Expanded(
               child: DragToMoveArea(
                 child: Container(

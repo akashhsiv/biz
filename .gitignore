@@ -14,7 +14,7 @@ whatsapp-service/auth-session/
 # Build outputs — staged/compiled by deploy/build-release.ps1 and NSIS, never source
 deploy/dist/
 deploy/host/*.exe
-deploy/slave/*.exe
+deploy/client/*.exe
 frontend/build/
 frontend/windows/flutter/ephemeral/
 

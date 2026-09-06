@@ -273,7 +273,7 @@ REM Only the API port is opened to the LAN - never PostgreSQL's port (ARCHITECTU
 REM profile=any because Windows frequently classifies a shop's own router/Wi-Fi as "Public"
 REM (default for any newly-joined network unless the admin manually marks it Private) - a
 REM private,domain-only rule silently does nothing on such a network, which looked like a random
-REM connection timeout from the Slave even though the service was running fine.
+REM connection timeout from a client even though the service was running fine.
 netsh advfirewall firewall show rule name="ERP Host API" >nul 2>&1
 if not %errorlevel%==0 (
     netsh advfirewall firewall add rule name="ERP Host API" dir=in action=allow protocol=TCP localport=5000 profile=any >nul
@@ -281,7 +281,7 @@ if not %errorlevel%==0 (
     netsh advfirewall firewall set rule name="ERP Host API" new profile=any >nul
 )
 
-REM UDP broadcast so Slave PCs can auto-discover this Host instead of needing its IP typed in by
+REM UDP broadcast so client PCs can auto-discover this Host instead of needing its IP typed in by
 REM hand (HostDiscoveryBroadcastService). Outbound is allowed by default on Windows; only inbound
 REM needs an explicit rule, same reasoning (and same profile=any fix) as the API port above.
 netsh advfirewall firewall show rule name="ERP Host Discovery" >nul 2>&1
@@ -356,7 +356,7 @@ REM this org's other installer, and doesn't depend on PowerShell/WScript.Shell s
 
 echo.
 echo === Install complete ===
-for /f "tokens=2 delims=:" %%a in ('ipconfig ^| findstr /c:"IPv4 Address"') do echo Slave PCs should connect to: %%a:5000
+for /f "tokens=2 delims=:" %%a in ('ipconfig ^| findstr /c:"IPv4 Address"') do echo Clients should connect to: %%a:5000
 echo Default login: admin / ChangeMe123! - change this immediately from the Users screen
 echo ==== install.bat completed successfully %date% %time% ==== >> "%LOGFILE%"
 del "%STEP%" >nul 2>&1

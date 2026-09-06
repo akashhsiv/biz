@@ -5,7 +5,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/constants/app_variant.dart';
 import '../../shared/widgets/app_toast.dart';
 import 'connection_controller.dart';
 import 'connection_state.dart';
@@ -56,7 +55,7 @@ class ConnectionScreen extends ConsumerStatefulWidget {
 }
 
 class _ConnectionScreenState extends ConsumerState<ConnectionScreen> {
-  final _controller = TextEditingController(text: AppVariant.defaultHostUrlPrefill);
+  final _controller = TextEditingController();
   bool _connecting = false;
   bool _restarting = false;
 
@@ -95,9 +94,8 @@ class _ConnectionScreenState extends ConsumerState<ConnectionScreen> {
 
   /// Tries the addresses most likely to work without the user typing anything: the field's
   /// current value first (in case they already have the right one, or a saved one restored it),
-  /// then — for the Host variant only, since that's the one bundled with the Host's own client and
-  /// always talks to a backend on the very same PC — localhost:5000, the Host's fixed API port.
-  /// A Slave build has no such guess to make; it always needs a real network address from the admin.
+  /// then whatever LAN discovery turns up. The backend is centrally hosted, so there's no
+  /// build-specific default to guess — every install always needs a real address from the admin.
   Future<void> _autoConnect({bool silent = false}) async {
     if (!mounted) return;
     setState(() => _connecting = true);
@@ -107,7 +105,6 @@ class _ConnectionScreenState extends ConsumerState<ConnectionScreen> {
     final candidates = <String>{
       ?discovered,
       if (_controller.text.trim().isNotEmpty) _controller.text.trim(),
-      if (AppVariant.isHost) 'localhost:5000',
     };
 
     for (final candidate in candidates) {
@@ -155,7 +152,7 @@ class _ConnectionScreenState extends ConsumerState<ConnectionScreen> {
                 Icon(Icons.lan_outlined, size: 56, color: Theme.of(context).colorScheme.primary),
                 const SizedBox(height: 12),
                 Text(
-                  AppVariant.appTitle,
+                  'ERP',
                   style: Theme.of(context).textTheme.headlineSmall,
                   textAlign: TextAlign.center,
                 ),

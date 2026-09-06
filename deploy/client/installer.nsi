@@ -1,26 +1,14 @@
-; ERP Slave/Host-desktop — NSIS installer.
-; One script builds either package variant, selected at compile time — the install.bat logic and
-; shortcut naming are identical either way, only the bundled app\ payload (and the exe's own
-; cosmetic APP_VARIANT baked in at `flutter build` time) differs. See app_variant.dart.
+; ERP desktop client — NSIS installer.
+; A single client app for every install — role-based permissions decide what a signed-in user can
+; do, so there's no separate build variant. See app_shell.dart / auth permission gating.
 ;
-; Build (from this directory, after build-release.ps1 has populated ..\dist\):
-;   makensis /DVARIANT=slave installer.nsi   -> ErpSlaveSetup.exe      (installs from ..\dist\slave-package)
-;   makensis /DVARIANT=host  installer.nsi   -> ErpSlaveHostSetup.exe  (installs from ..\dist\slave-host-package)
+; Build (from this directory, after build-release.ps1 has populated ..\dist\client-package):
+;   makensis installer.nsi   -> ErpClientSetup.exe
 ; Requires NSIS (https://nsis.sourceforge.io/) on the build machine — not on the target PC.
 
-!ifndef VARIANT
-    !define VARIANT "slave"
-!endif
-
-!if "${VARIANT}" == "host"
-    !define PACKAGE_DIR "..\dist\slave-host-package"
-    !define OUT_NAME "ErpSlaveHostSetup.exe"
-    !define APP_NAME "ERP (Host desktop)"
-!else
-    !define PACKAGE_DIR "..\dist\slave-package"
-    !define OUT_NAME "ErpSlaveSetup.exe"
-    !define APP_NAME "ERP"
-!endif
+!define PACKAGE_DIR "..\dist\client-package"
+!define OUT_NAME "ErpClientSetup.exe"
+!define APP_NAME "ERP"
 
 ; See installer.nsi in deploy\host\ for why these are set explicitly - this NSIS install's icon
 ; set doesn't include the bare "modern-install.ico"/"modern-uninstall.ico" MUI2 defaults to.
@@ -31,7 +19,7 @@
 
 Name "${APP_NAME}"
 OutFile "${OUT_NAME}"
-InstallDir "$PROGRAMFILES64\ErpSlave"
+InstallDir "$PROGRAMFILES64\ErpApp"
 RequestExecutionLevel admin
 Unicode true
 
@@ -57,10 +45,10 @@ Section "Install"
 
     ; Native NSIS shortcut instead of the PowerShell/WScript.Shell route install.bat used to take -
     ; matches the proven pattern from this org's other installer (MugilAngadi\installer.nsi).
-    ; Points at %ProgramFiles%\ErpSlave\erp_client.exe, not $INSTDIR\app\erp_client.exe - install.bat
-    ; xcopies app\ flattened into %ProgramFiles%\ErpSlave, which is where the app actually runs from.
-    CreateShortcut "$DESKTOP\ERP.lnk" "$PROGRAMFILES64\ErpSlave\erp_client.exe"
-    CreateShortcut "$SMPROGRAMS\ERP.lnk" "$PROGRAMFILES64\ErpSlave\erp_client.exe"
+    ; Points at %ProgramFiles%\ErpApp\erp_client.exe, not $INSTDIR\app\erp_client.exe - install.bat
+    ; xcopies app\ flattened into %ProgramFiles%\ErpApp, which is where the app actually runs from.
+    CreateShortcut "$DESKTOP\ERP.lnk" "$PROGRAMFILES64\ErpApp\erp_client.exe"
+    CreateShortcut "$SMPROGRAMS\ERP.lnk" "$PROGRAMFILES64\ErpApp\erp_client.exe"
 
     WriteUninstaller "$INSTDIR\Uninstall.exe"
 SectionEnd

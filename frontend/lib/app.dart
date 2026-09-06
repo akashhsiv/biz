@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/auth/auth_controller.dart';
-import 'core/constants/app_variant.dart';
 import 'core/constants/permissions.dart';
 import 'core/shortcuts/form_nav_shortcuts.dart';
 import 'core/shortcuts/global_shortcuts_listener.dart';
@@ -206,7 +205,7 @@ class ErpApp extends ConsumerWidget {
 
     return MaterialApp(
       navigatorKey: appNavigatorKey,
-      title: AppVariant.appTitle,
+      title: 'ERP',
       theme: appTheme,
       // Wraps the whole app including the Navigator's overlay, so this reaches dialogs too - most
       // forms in this app (create-customer, create-item, etc.) are shown via showDialog, which

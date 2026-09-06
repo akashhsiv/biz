@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/auth/auth_controller.dart';
-import '../../core/constants/app_variant.dart';
 import '../../core/network/api_result.dart';
 import '../../shared/widgets/password_field.dart';
 
@@ -56,7 +55,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               children: [
                 Icon(Icons.storefront_outlined, size: 56, color: Theme.of(context).colorScheme.primary),
                 const SizedBox(height: 12),
-                Text(AppVariant.appTitle, style: Theme.of(context).textTheme.headlineSmall, textAlign: TextAlign.center),
+                Text('ERP', style: Theme.of(context).textTheme.headlineSmall, textAlign: TextAlign.center),
                 const SizedBox(height: 24),
                 TextField(
                   controller: _username,

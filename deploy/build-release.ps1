@@ -1,4 +1,4 @@
-# Stages everything the Host and Slave installers (install.bat plus the NSIS/Inno wrappers around
+# Stages everything the Host and client installers (install.bat plus the NSIS/Inno wrappers around
 # it) need, into deploy\dist\. Run this before compiling installer.nsi/installer.iss, or before
 # zipping a package for the batch-only install path.
 #
@@ -134,50 +134,45 @@ if (-not (Test-Path $waNodeExe)) {
 }
 
 # ---------------------------------------------------------------------------------------------
-# Slave packages: one Flutter build per APP_VARIANT, each paired with the same install scripts.
+# Client package: a single Flutter build for every install — one app, permissions/role decide
+# what a signed-in user can do, so there's no separate variant to build.
 # ---------------------------------------------------------------------------------------------
-function Build-SlaveVariant([string]$Variant, [string]$PackageName) {
-    Step "Building Flutter Windows app (APP_VARIANT=$Variant)"
-    $frontendDir = Join-Path $repoRoot "frontend"
-    Push-Location $frontendDir
-    try {
-        flutter build windows --release "--dart-define=APP_VARIANT=$Variant"
-        if ($LASTEXITCODE -ne 0) { throw "flutter build windows failed with exit code $LASTEXITCODE" }
-    } finally {
-        Pop-Location
-    }
-
-    $packageDir = Join-Path $distRoot $PackageName
-    $appOut = Join-Path $packageDir "app"
-    New-Item -ItemType Directory -Force -Path $packageDir | Out-Null
-    if (Test-Path $appOut) { Remove-Item -Recurse -Force $appOut }
-
-    $flutterReleaseDir = Join-Path $frontendDir "build\windows\x64\runner\Release"
-    Copy-Item $flutterReleaseDir $appOut -Recurse
-
-    Copy-Item (Join-Path $deployRoot "slave\install.bat") $packageDir -Force
-    Copy-Item (Join-Path $deployRoot "slave\uninstall.bat") $packageDir -Force
-    Copy-Item (Join-Path $deployRoot "slave\make-shortcuts.ps1") $packageDir -Force
+Step "Building Flutter Windows app"
+$frontendDir = Join-Path $repoRoot "frontend"
+Push-Location $frontendDir
+try {
+    flutter build windows --release
+    if ($LASTEXITCODE -ne 0) { throw "flutter build windows failed with exit code $LASTEXITCODE" }
+} finally {
+    Pop-Location
 }
 
-Build-SlaveVariant -Variant "slave" -PackageName "slave-package"
-Build-SlaveVariant -Variant "host" -PackageName "slave-host-package"
+$clientPackageDir = Join-Path $distRoot "client-package"
+$appOut = Join-Path $clientPackageDir "app"
+New-Item -ItemType Directory -Force -Path $clientPackageDir | Out-Null
+if (Test-Path $appOut) { Remove-Item -Recurse -Force $appOut }
+
+$flutterReleaseDir = Join-Path $frontendDir "build\windows\x64\runner\Release"
+Copy-Item $flutterReleaseDir $appOut -Recurse
+
+Copy-Item (Join-Path $deployRoot "client\install.bat") $clientPackageDir -Force
+Copy-Item (Join-Path $deployRoot "client\uninstall.bat") $clientPackageDir -Force
+Copy-Item (Join-Path $deployRoot "client\make-shortcuts.ps1") $clientPackageDir -Force
 
 # ---------------------------------------------------------------------------------------------
-# Bundle the host-flavored client app into the Host package too, so ErpHostSetup.exe alone gives
-# the Shop Admin a desktop shortcut to actually use the app, not just a running backend service
-# with nothing to click.
+# Bundle the client app into the Host package too, so ErpHostSetup.exe alone gives whoever runs
+# the backend a desktop shortcut to actually use the app, not just a running backend service with
+# nothing to click.
 # ---------------------------------------------------------------------------------------------
 Step "Bundling the client app into the Host package"
 $clientDir = Join-Path $hostPackageDir "client"
 if (Test-Path $clientDir) { Remove-Item -Recurse -Force $clientDir }
-Copy-Item (Join-Path $distRoot "slave-host-package\app") $clientDir -Recurse
-Copy-Item (Join-Path $deployRoot "slave\make-shortcuts.ps1") $hostPackageDir -Force
+Copy-Item $appOut $clientDir -Recurse
+Copy-Item (Join-Path $deployRoot "client\make-shortcuts.ps1") $hostPackageDir -Force
 
 Step "Done"
 Write-Host "Packages staged under $distRoot :"
-Write-Host "  host-package\        -> zip as-is for the batch-only install path, or compile"
-Write-Host "                          deploy\host\installer.nsi / installer.iss against it"
-Write-Host "  slave-package\       -> for other PCs (makensis/iscc with VARIANT=slave, or as-is)"
-Write-Host "  slave-host-package\  -> for the Host PC's own desktop (VARIANT=host)"
+Write-Host "  host-package\    -> zip as-is for the batch-only install path, or compile"
+Write-Host "                     deploy\host\installer.nsi / installer.iss against it"
+Write-Host "  client-package\  -> the single desktop client, for every install (makensis/iscc, or as-is)"
 

@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/auth/auth_controller.dart';
-import '../../core/constants/app_variant.dart';
 import '../../core/shortcuts/app_shell_shortcuts.dart';
 import '../../core/shortcuts/nav_shortcuts.dart';
 import '../../core/shortcuts/shortcuts_help_dialog.dart';
@@ -287,7 +286,7 @@ class _BrandingHeader extends ConsumerWidget {
     final logoAsync = ref.watch(companyLogoBytesProvider);
 
     final settings = settingsAsync.valueOrNull;
-    final shopName = settings?.shopName ?? AppVariant.appTitle;
+    final shopName = settings?.shopName ?? 'ERP';
     final gstin = settings?.gstin;
     final logoBytes = logoAsync.valueOrNull;
 
