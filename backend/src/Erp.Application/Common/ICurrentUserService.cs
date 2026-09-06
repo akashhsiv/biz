@@ -15,5 +15,10 @@ public interface ICurrentUserService
     /// yet" and fail with a clear error rather than silently operating unscoped.</summary>
     Guid? CurrentShopId { get; }
 
+    /// <summary>True for a user who operates above the shop level (User.IsSuperAdmin) and can
+    /// provision shops/Shop Admins via api/admin. Resolved server-side the same way as everything
+    /// else here — never trust a client-supplied claim.</summary>
+    bool IsSuperAdmin { get; }
+
     bool HasPermission(string permissionKey);
 }

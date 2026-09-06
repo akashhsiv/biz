@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using Erp.Application.Security;
 using Erp.Domain.Identity;
 using Erp.Domain.Shops;
@@ -33,15 +34,20 @@ public static class DbSeeder
     {
         var permissionsByKey = await SeedPermissionsAsync(db, ct);
         var (shopAdmin, salesTeam, purchaseTeam) = await SeedRolesAsync(db, ct);
+        var superAdminRole = await SeedSuperAdminRoleAsync(db, ct);
 
         await GrantAllAsync(db, shopAdmin, permissionsByKey.Values, ct);
         await GrantAsync(db, salesTeam, permissionsByKey, SalesTeamGrants, ct);
         await GrantAsync(db, purchaseTeam, permissionsByKey, PurchaseTeamGrants, ct);
+        // Deliberately no grants for Super Admin's legacy Role — a super admin is authorized via
+        // User.IsSuperAdmin / [RequireSuperAdmin], not the shop permission-claim system, and normally
+        // has no UserShopRole at all. The Role row exists only to satisfy User.RoleId's FK.
 
         var defaultShop = await SeedDefaultCompanyAndShopAsync(db, ct);
         await SeedCompanySettingsAsync(db, defaultShop, ct);
         var admin = await SeedAdminUserAsync(db, shopAdmin, ct);
         await SeedAdminUserShopRoleAsync(db, admin, defaultShop, shopAdmin, ct);
+        await SeedSuperAdminUserAsync(db, superAdminRole, ct);
 
         await db.SaveChangesAsync(ct);
     }
@@ -100,6 +106,19 @@ public static class DbSeeder
         }
 
         return (GetOrAdd("Shop Admin"), GetOrAdd("Sales Team"), GetOrAdd("Purchase Team"));
+    }
+
+    /// <summary>Roles are global (shared across shops, per SeedRolesAsync above) — this adds one more
+    /// global role purely to satisfy User.RoleId's required FK for super admin users, who are
+    /// authorized via User.IsSuperAdmin instead of any permission this role might carry.</summary>
+    private static async Task<Role> SeedSuperAdminRoleAsync(ErpDbContext db, CancellationToken ct)
+    {
+        var existing = await db.Roles.FirstOrDefaultAsync(r => r.Name == "Super Admin", ct);
+        if (existing is not null) return existing;
+
+        var role = new Role { Name = "Super Admin", IsSystemRole = true, Description = "Provisions shops and Shop Admins; carries no shop permissions." };
+        db.Roles.Add(role);
+        return role;
     }
 
     private static async Task GrantAllAsync(ErpDbContext db, Role role, IEnumerable<Permission> permissions, CancellationToken ct)
@@ -166,5 +185,47 @@ public static class DbSeeder
             Shop = shop,
             Role = shopAdmin,
         });
+    }
+
+    /// <summary>Seeds the one super admin login used to bootstrap shop provisioning (api/admin). Unlike
+    /// the Shop Admin seed above, this account has no fixed default password — it has no shop scoping
+    /// so a well-known credential here would be a much bigger blast radius than "admin"/ChangeMe123!.
+    /// A fresh random password is generated and printed to the console on first run only; it is never
+    /// stored or logged anywhere else, so whoever runs the backend for the first time must note it down
+    /// then (it can always be reset by an operator with direct DB access afterwards).</summary>
+    private static async Task SeedSuperAdminUserAsync(ErpDbContext db, Role superAdminRole, CancellationToken ct)
+    {
+        var existing = await db.Users.IgnoreQueryFilters().FirstOrDefaultAsync(u => u.Username == "superadmin", ct);
+        if (existing is not null) return;
+
+        var password = GenerateRandomPassword();
+
+        var superAdmin = new User
+        {
+            Username = "superadmin",
+            FullName = "Super Administrator",
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword(password),
+            IsActive = true,
+            IsSuperAdmin = true,
+            Role = superAdminRole,
+        };
+        db.Users.Add(superAdmin);
+
+        Console.WriteLine("========================================================================");
+        Console.WriteLine("[seed] Created super admin login (first run only — save this password now):");
+        Console.WriteLine($"[seed]   username: superadmin");
+        Console.WriteLine($"[seed]   password: {password}");
+        Console.WriteLine("[seed] This password will not be shown again. Reset it via the database if lost.");
+        Console.WriteLine("========================================================================");
+    }
+
+    /// <summary>32 bytes (256 bits) of CSPRNG entropy, URL-safe base64 encoded — well above the 16
+    /// bytes the caller asked for as a minimum, and generated the same way TokenHasher.GenerateRawToken
+    /// generates session tokens.</summary>
+    private static string GenerateRandomPassword()
+    {
+        Span<byte> bytes = stackalloc byte[32];
+        RandomNumberGenerator.Fill(bytes);
+        return Convert.ToBase64String(bytes).Replace('+', '-').Replace('/', '_').TrimEnd('=');
     }
 }

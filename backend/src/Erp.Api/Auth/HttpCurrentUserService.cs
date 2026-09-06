@@ -17,6 +17,8 @@ public class HttpCurrentUserService(IHttpContextAccessor accessor) : ICurrentUse
 
     public Guid? CurrentShopId => Guid.TryParse(Principal?.FindFirstValue(SessionAuthDefaults.ShopIdClaimType), out var shopId) ? shopId : null;
 
+    public bool IsSuperAdmin => Principal?.FindFirstValue(SessionAuthDefaults.SuperAdminClaimType) == "true";
+
     public IReadOnlySet<string> Permissions => Principal?
         .FindAll(SessionAuthDefaults.PermissionClaimType)
         .Select(c => c.Value)

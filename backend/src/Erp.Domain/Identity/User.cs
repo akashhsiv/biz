@@ -10,6 +10,12 @@ public class User : BaseEntity
     public bool IsActive { get; set; } = true;
     public DateTime? LastLoginAt { get; set; }
 
+    /// <summary>Global flag for a user who operates above the shop level — provisions shops and Shop
+    /// Admins via api/admin, but does not (generally) hold any UserShopRole grant since they don't
+    /// touch shop business data. Independent of RoleId/UserShopRole; checked directly by
+    /// [RequireSuperAdmin] rather than via the permission-claim system.</summary>
+    public bool IsSuperAdmin { get; set; }
+
     /// <summary>Deprecated by the multi-shop rework — a user's role is now resolved per-shop via
     /// UserShopRole. Kept (not dropped) only as a migration-era fallback for sessions/code paths that
     /// haven't gone through shop selection yet; do not read this for authorization decisions in new

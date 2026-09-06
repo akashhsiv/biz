@@ -70,6 +70,9 @@ builder.Services.PostConfigure<AuthorizationOptions>(options =>
     {
         options.AddPolicy(key, policy => policy.RequireClaim(SessionAuthDefaults.PermissionClaimType, key));
     }
+
+    options.AddPolicy(SessionAuthDefaults.SuperAdminPolicy,
+        policy => policy.RequireClaim(SessionAuthDefaults.SuperAdminClaimType, "true"));
 });
 
 var app = builder.Build();

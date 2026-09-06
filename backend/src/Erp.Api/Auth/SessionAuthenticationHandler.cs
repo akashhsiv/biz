@@ -14,6 +14,8 @@ public static class SessionAuthDefaults
     public const string Scheme = "Session";
     public const string PermissionClaimType = "permission";
     public const string ShopIdClaimType = "shop_id";
+    public const string SuperAdminClaimType = "super_admin";
+    public const string SuperAdminPolicy = "SuperAdmin";
 }
 
 /// <summary>Resolves the caller from the opaque bearer token against the sessions table. Never trusts a role/permission claim supplied by the client (there isn't one to supply — everything is looked up server-side).</summary>
@@ -84,6 +86,8 @@ public class SessionAuthenticationHandler(
         };
         if (session.ShopId is Guid activeShopId)
             claims.Add(new Claim(SessionAuthDefaults.ShopIdClaimType, activeShopId.ToString()));
+        if (session.User.IsSuperAdmin)
+            claims.Add(new Claim(SessionAuthDefaults.SuperAdminClaimType, "true"));
         claims.AddRange(permissionKeys.Select(key => new Claim(SessionAuthDefaults.PermissionClaimType, key)));
 
         var identity = new ClaimsIdentity(claims, SessionAuthDefaults.Scheme);
