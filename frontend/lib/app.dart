@@ -6,6 +6,7 @@ import 'core/constants/permissions.dart';
 import 'core/shortcuts/form_nav_shortcuts.dart';
 import 'core/shortcuts/global_shortcuts_listener.dart';
 import 'core/theme/app_theme.dart';
+import 'features/admin/super_admin_dashboard_screen.dart';
 import 'features/auth/login_screen.dart';
 import 'features/connection/connection_controller.dart';
 import 'features/connection/connection_state.dart';
@@ -33,6 +34,7 @@ import 'features/sales/sales_invoices_screen.dart';
 import 'features/stock/stock_screen.dart';
 import 'features/users/users_screen.dart';
 import 'features/whatsapp/whatsapp_screen.dart';
+import 'core/platform/desktop_window.dart';
 import 'shared/widgets/app_shell.dart';
 import 'shared/widgets/custom_title_bar.dart';
 import 'shared/widgets/overlay_host.dart';
@@ -65,6 +67,10 @@ class ErpApp extends ConsumerWidget {
       home = const ConnectionScreen();
     } else if (!auth.isAuthenticated) {
       home = const LoginScreen();
+    } else if (auth.isSuperAdmin) {
+      // A super admin has no shop-scoped UserShopRole in general, so the normal shop-selection
+      // flow (ShopGate/AppShell) doesn't apply — send them straight to their own dashboard.
+      home = const SuperAdminDashboardScreen();
     } else if (ref.watch(selectedShopControllerProvider) == null) {
       // Multi-shop rework: no shop persisted/valid yet for this session - resolve one (auto-select
       // if there's only one, otherwise show the picker) before AppShell. A shop restored from a
@@ -201,7 +207,7 @@ class ErpApp extends ConsumerWidget {
     // close controls and clock that CustomTitleBar otherwise provides (confirmed decision) - having
     // both would show two title-bar-ish strips stacked on top of each other. Connection/Login have
     // no such bar of their own, so they still get the standalone CustomTitleBar.
-    final showCustomTitleBar = home is! AppShell;
+    final showCustomTitleBar = home is! AppShell && isDesktopWindowed;
 
     return MaterialApp(
       navigatorKey: appNavigatorKey,

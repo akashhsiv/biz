@@ -32,6 +32,7 @@ class AuthController extends StateNotifier<AuthState> {
       fullName: profile['fullName'] as String,
       roleName: profile['roleName'] as String,
       permissions: permissions,
+      isSuperAdmin: profile['isSuperAdmin'] as bool? ?? false,
     );
   }
 
@@ -60,6 +61,7 @@ class AuthController extends StateNotifier<AuthState> {
           fullName: data['fullName'] as String,
           roleName: data['roleName'] as String,
           permissions: permissions,
+          isSuperAdmin: data['isSuperAdmin'] as bool? ?? false,
         );
         return const ApiSuccess(true);
 

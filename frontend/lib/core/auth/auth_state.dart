@@ -6,6 +6,7 @@ class AuthState {
   final String fullName;
   final String roleName;
   final Set<String> permissions;
+  final bool isSuperAdmin;
 
   const AuthState({
     this.isAuthenticated = false,
@@ -15,6 +16,7 @@ class AuthState {
     this.fullName = '',
     this.roleName = '',
     this.permissions = const {},
+    this.isSuperAdmin = false,
   });
 
   bool has(String permission) => permissions.contains(permission);
@@ -27,6 +29,7 @@ class AuthState {
     String? fullName,
     String? roleName,
     Set<String>? permissions,
+    bool? isSuperAdmin,
   }) {
     return AuthState(
       isAuthenticated: isAuthenticated ?? this.isAuthenticated,
@@ -36,6 +39,7 @@ class AuthState {
       fullName: fullName ?? this.fullName,
       roleName: roleName ?? this.roleName,
       permissions: permissions ?? this.permissions,
+      isSuperAdmin: isSuperAdmin ?? this.isSuperAdmin,
     );
   }
 
