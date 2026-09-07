@@ -49,7 +49,7 @@ public class AuthService(ErpDbContext db) : IAuthService
         await db.SaveChangesAsync(ct);
 
         var permissions = user.Role.RolePermissions.Select(rp => rp.Permission.Key).ToList();
-        return new LoginResult(rawToken, expiresAt, user.Id, user.Username, user.FullName, user.Role.Name, permissions);
+        return new LoginResult(rawToken, expiresAt, user.Id, user.Username, user.FullName, user.Role.Name, permissions, user.IsSuperAdmin);
     }
 
     public async Task<SelectShopResult> SelectShopAsync(Guid userId, string tokenHash, Guid shopId, CancellationToken ct = default)

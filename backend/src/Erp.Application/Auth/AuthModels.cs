@@ -2,7 +2,7 @@ namespace Erp.Application.Auth;
 
 public record LoginRequest(string Username, string Password);
 
-public record LoginResult(string Token, DateTime ExpiresAt, Guid UserId, string Username, string FullName, string RoleName, IReadOnlyList<string> Permissions);
+public record LoginResult(string Token, DateTime ExpiresAt, Guid UserId, string Username, string FullName, string RoleName, IReadOnlyList<string> Permissions, bool IsSuperAdmin);
 
 /// <summary>Returned by POST /api/auth/select-shop. The client re-derives its effective role/permissions
 /// for the shop it just picked; the bearer token itself doesn't change.</summary>
