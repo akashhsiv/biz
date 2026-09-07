@@ -92,6 +92,7 @@ public class ErpDbContext(DbContextOptions<ErpDbContext> options, ICurrentUserSe
     public DbSet<NotificationEvent> NotificationEvents => Set<NotificationEvent>();
     public DbSet<ShopNotificationSettings> ShopNotificationSettings => Set<ShopNotificationSettings>();
     public DbSet<MobilePushOutboxItem> MobilePushOutboxItems => Set<MobilePushOutboxItem>();
+    public DbSet<DeviceToken> DeviceTokens => Set<DeviceToken>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

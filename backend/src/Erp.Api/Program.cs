@@ -45,6 +45,7 @@ builder.Services.AddHostedService<Erp.Infrastructure.Backup.DailyBackupWorker>()
 // pieces that know WhatsApp/Mobile channels exist.
 builder.Services.AddScoped<Erp.Application.Notifications.INotificationEventService, Erp.Infrastructure.Services.NotificationEventService>();
 builder.Services.AddScoped<Erp.Infrastructure.Services.NotificationDispatcher>();
+builder.Services.AddSingleton<Erp.Application.Notifications.IPushNotificationService, Erp.Infrastructure.Services.PushNotificationService>();
 builder.Services.AddHostedService<Erp.Infrastructure.Notifications.NotificationCheckWorker>();
 
 builder.Services.AddHttpClient();

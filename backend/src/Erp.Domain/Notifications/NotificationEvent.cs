@@ -32,4 +32,10 @@ public class NotificationEvent : BaseEntity, IShopScoped
     public Guid? ReferenceId { get; set; }
 
     public DateTime? DispatchedAt { get; set; }
+
+    /// <summary>When this event was read in the in-app notification inbox. Simplification: this is
+    /// shop-wide read tracking (any user in the shop marking it read marks it read for everyone), not
+    /// per-user — a proper per-user read model would need a join table (NotificationEventId, UserId).
+    /// Acceptable for now since the inbox is a shared shop feed, not a personal one.</summary>
+    public DateTime? ReadAt { get; set; }
 }

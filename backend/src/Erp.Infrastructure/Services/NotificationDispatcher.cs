@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Erp.Application.Notifications;
 using Erp.Domain.Common;
 using Erp.Domain.Notifications;
 using Erp.Domain.Whatsapp;
@@ -13,10 +14,12 @@ namespace Erp.Infrastructure.Services;
 /// place that knows a WhatsappOutboxItem or MobilePushOutboxItem exists — business logic that raises
 /// events (StockService, NotificationCheckWorker) never references either.
 ///
-/// Mobile push: creating a MobilePushOutboxItem is as far as this goes. There is no push provider
-/// (Firebase/APNs) wired up — that is an explicit future decision — so a Mobile-enabled event just
-/// leaves a Pending row in that table forever today. Do not treat "Mobile enabled" as "delivered".</summary>
-public class NotificationDispatcher(ErpDbContext db, ILogger<NotificationDispatcher> logger)
+/// Mobile push: a MobilePushOutboxItem row is created either way (as an audit trail of "push was
+/// intended for this event"), and IPushNotificationService.SendAsync is called for every DeviceToken
+/// registered by a user in that shop. If Firebase isn't configured yet the outbox row is marked
+/// NotConfigured rather than Sent/Failed — see PushNotificationService. Either way this never throws
+/// or blocks the surrounding event from being marked Dispatched.</summary>
+public class NotificationDispatcher(ErpDbContext db, IPushNotificationService pushService, ILogger<NotificationDispatcher> logger)
 {
     public async Task ProcessPendingAsync(CancellationToken ct)
     {
@@ -80,17 +83,59 @@ public class NotificationDispatcher(ErpDbContext db, ILogger<NotificationDispatc
 
         if (mobile)
         {
-            db.MobilePushOutboxItems.Add(new MobilePushOutboxItem
+            var outboxItem = new MobilePushOutboxItem
             {
                 ShopId = evt.ShopId,
                 NotificationEventId = evt.Id,
-                RecipientDescription = "Shop Admins", // no device-registration model yet — see MobilePushOutboxItem doc comment.
+                RecipientDescription = "Shop Admins", // no per-event recipient targeting yet — every registered device in the shop gets the push.
                 PayloadJson = evt.PayloadJson,
                 Status = MobilePushOutboxStatus.Pending,
                 CreatedAt = DateTime.UtcNow,
-            });
+            };
+            db.MobilePushOutboxItems.Add(outboxItem);
+
+            if (!pushService.IsConfigured)
+            {
+                outboxItem.Status = MobilePushOutboxStatus.NotConfigured;
+            }
+            else
+            {
+                var tokens = await db.DeviceTokens
+                    .Where(t => t.ShopId == evt.ShopId)
+                    .Select(t => t.Token)
+                    .ToListAsync(ct);
+
+                if (tokens.Count == 0)
+                {
+                    // Nothing to send to yet — not a failure, just no registered devices for this shop.
+                    outboxItem.Status = MobilePushOutboxStatus.Sent;
+                }
+                else
+                {
+                    var title = BuildTitle(evt);
+                    var body = BuildMessage(evt);
+                    var anySucceeded = false;
+                    foreach (var token in tokens)
+                    {
+                        var sent = await pushService.SendAsync(token, title, body, ct);
+                        anySucceeded = anySucceeded || sent;
+                    }
+                    outboxItem.Status = anySucceeded ? MobilePushOutboxStatus.Sent : MobilePushOutboxStatus.Failed;
+                }
+            }
         }
     }
+
+    private static string BuildTitle(NotificationEvent evt) => evt.EventType switch
+    {
+        NotificationEventType.LowStock => "Low stock alert",
+        NotificationEventType.PurchaseDue => "Purchase payment due soon",
+        NotificationEventType.PurchaseOverdue => "Purchase payment overdue",
+        NotificationEventType.CustomerOutstanding => "Customer outstanding balance",
+        NotificationEventType.SalesPaymentDue => "Payment due soon",
+        NotificationEventType.SalesPaymentOverdue => "Payment overdue",
+        _ => "Notification",
+    };
 
     private static (bool Whatsapp, bool Mobile) ChannelsFor(NotificationEventType type, ShopNotificationSettings s) => type switch
     {

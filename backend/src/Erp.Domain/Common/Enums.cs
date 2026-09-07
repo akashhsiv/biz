@@ -233,5 +233,10 @@ public enum MobilePushOutboxStatus
 {
     Pending,
     Sent,
-    Failed
+    Failed,
+
+    /// <summary>Send was attempted but Firebase:ServiceAccountJsonPath isn't configured yet — see
+    /// PushNotificationService. Distinct from Failed (a real send error) so an admin can tell "nobody's
+    /// set up push yet" apart from "push is set up but broken".</summary>
+    NotConfigured
 }
