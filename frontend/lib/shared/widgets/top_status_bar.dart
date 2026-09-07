@@ -7,9 +7,12 @@ import 'package:window_manager/window_manager.dart';
 
 import '../../core/auth/auth_controller.dart';
 import '../../core/constants/permissions.dart';
+import '../../core/platform/desktop_window.dart';
 import '../../core/theme/app_theme.dart';
 import '../../features/connection/connection_controller.dart';
 import '../../features/host/host_status_card.dart';
+import '../../features/notifications/notifications_provider.dart';
+import '../../features/notifications/notifications_screen.dart';
 import '../../features/whatsapp/whatsapp_screen.dart';
 import '../../features/whatsapp/whatsapp_status_provider.dart';
 import 'user_menu.dart';
@@ -37,10 +40,14 @@ class _TopStatusBarState extends ConsumerState<TopStatusBar> with WindowListener
   @override
   void initState() {
     super.initState();
-    windowManager.addListener(this);
-    windowManager.isMaximized().then((v) {
-      if (mounted) setState(() => _maximized = v);
-    });
+    // window_manager has no Android/iOS implementation - AppShell (and this bar) mounts on both
+    // platforms, so unlike CustomTitleBar this one can't just skip building on mobile.
+    if (isDesktopWindowed) {
+      windowManager.addListener(this);
+      windowManager.isMaximized().then((v) {
+        if (mounted) setState(() => _maximized = v);
+      });
+    }
     _clockTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted) setState(() => _now = DateTime.now());
     });
@@ -48,7 +55,7 @@ class _TopStatusBarState extends ConsumerState<TopStatusBar> with WindowListener
 
   @override
   void dispose() {
-    windowManager.removeListener(this);
+    if (isDesktopWindowed) windowManager.removeListener(this);
     _clockTimer?.cancel();
     super.dispose();
   }
@@ -77,7 +84,9 @@ class _TopStatusBarState extends ConsumerState<TopStatusBar> with WindowListener
           ),
           Text(widget.pageTitle, style: const TextStyle(fontSize: 15, color: Colors.white, fontWeight: FontWeight.w700)),
           // The rest of the bar is empty most of the time — make it double as the window's drag
-          // region, same as the title bar it replaces.
+          // region, same as the title bar it replaces. DragToMoveArea is a no-op gesture region on
+          // platforms without window_manager, but it's still safe to build there (it just never
+          // receives a drag), so it's not gated behind isDesktopWindowed like the window buttons are.
           Expanded(
             child: DragToMoveArea(
               child: Container(
@@ -97,33 +106,38 @@ class _TopStatusBarState extends ConsumerState<TopStatusBar> with WindowListener
           ],
           _WhatsappStatusChip(canManage: auth.has(Permissions.whatsappManage)),
           const SizedBox(width: 20),
+          const _NotificationBellButton(),
+          const SizedBox(width: 12),
           UserMenuButton(
             fullName: auth.fullName,
             roleName: auth.roleName,
             light: true,
             onLogout: () => ref.read(authControllerProvider.notifier).logout(),
           ),
-          const SizedBox(width: 12),
-          Container(width: 1, height: 20, color: Colors.white.withValues(alpha: 0.12)),
-          _TitleBarButton(icon: Icons.remove, tooltip: 'Minimize', onPressed: () => windowManager.minimize()),
-          _TitleBarButton(
-            icon: _maximized ? Icons.filter_none : Icons.crop_square,
-            tooltip: _maximized ? 'Restore' : 'Maximize',
-            iconSize: 13,
-            onPressed: () async {
-              if (await windowManager.isMaximized()) {
-                await windowManager.unmaximize();
-              } else {
-                await windowManager.maximize();
-              }
-            },
-          ),
-          _TitleBarButton(
-            icon: Icons.close,
-            tooltip: 'Close',
-            hoverColor: const Color(0xFFE81123),
-            onPressed: () => windowManager.close(),
-          ),
+          if (isDesktopWindowed) ...[
+            const SizedBox(width: 12),
+            Container(width: 1, height: 20, color: Colors.white.withValues(alpha: 0.12)),
+            _TitleBarButton(icon: Icons.remove, tooltip: 'Minimize', onPressed: () => windowManager.minimize()),
+            _TitleBarButton(
+              icon: _maximized ? Icons.filter_none : Icons.crop_square,
+              tooltip: _maximized ? 'Restore' : 'Maximize',
+              iconSize: 13,
+              onPressed: () async {
+                if (await windowManager.isMaximized()) {
+                  await windowManager.unmaximize();
+                } else {
+                  await windowManager.maximize();
+                }
+              },
+            ),
+            _TitleBarButton(
+              icon: Icons.close,
+              tooltip: 'Close',
+              hoverColor: const Color(0xFFE81123),
+              onPressed: () => windowManager.close(),
+            ),
+          ] else
+            const SizedBox(width: 8),
         ],
       ),
     );
@@ -226,6 +240,52 @@ class _WhatsappStatusChip extends ConsumerWidget {
       },
       loading: () => const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
       error: (_, _) => const SizedBox.shrink(),
+    );
+  }
+}
+
+/// Bell icon + unread-count badge opening [NotificationsScreen], matching the drill-down navigation
+/// pattern used elsewhere in the app (Navigator.push to a standalone Scaffold rather than a dialog,
+/// since the inbox is a full list with its own filters/actions).
+class _NotificationBellButton extends ConsumerWidget {
+  const _NotificationBellButton();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final countAsync = ref.watch(unreadCountProvider);
+    final count = countAsync.valueOrNull ?? 0;
+
+    return Tooltip(
+      message: 'Notifications',
+      waitDuration: const Duration(milliseconds: 500),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(20),
+        onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const NotificationsScreen())),
+        child: Padding(
+          padding: const EdgeInsets.all(6),
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              const Icon(Icons.notifications_outlined, size: 20, color: Colors.white),
+              if (count > 0)
+                Positioned(
+                  right: -4,
+                  top: -4,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                    constraints: const BoxConstraints(minWidth: 16),
+                    decoration: BoxDecoration(color: const Color(0xFFF87171), borderRadius: BorderRadius.circular(8)),
+                    child: Text(
+                      count > 99 ? '99+' : '$count',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

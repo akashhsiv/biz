@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../network/api_client.dart';
 import '../network/api_result.dart';
 import '../providers.dart';
+import '../push/push_registration.dart';
 import '../storage/app_storage.dart';
 import 'auth_state.dart';
 
@@ -63,6 +66,11 @@ class AuthController extends StateNotifier<AuthState> {
           permissions: permissions,
           isSuperAdmin: data['isSuperAdmin'] as bool? ?? false,
         );
+
+        // Fire-and-forget: registering a push token is never allowed to delay or fail login (see
+        // registerDeviceTokenForPush's doc comment - it no-ops until Firebase is actually configured).
+        unawaited(registerDeviceTokenForPush(_api));
+
         return const ApiSuccess(true);
 
       case ApiFailure(statusCode: final code, message: final msg):

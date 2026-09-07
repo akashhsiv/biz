@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:window_manager/window_manager.dart';
 
+import '../../core/platform/desktop_window.dart';
 import '../../core/theme/app_theme.dart';
 
 /// Replaces the native Windows title bar (confirmed decision 2026-08-28): sidebar-themed, draggable,
@@ -26,10 +27,15 @@ class _CustomTitleBarState extends State<CustomTitleBar> with WindowListener {
   @override
   void initState() {
     super.initState();
-    windowManager.addListener(this);
-    windowManager.isMaximized().then((v) {
-      if (mounted) setState(() => _maximized = v);
-    });
+    // CustomTitleBar is only mounted (see app.dart's showCustomTitleBar) on platforms where
+    // window_manager has a native implementation - guard anyway so this widget stays safe to
+    // render standalone (e.g. tests) on a platform without one.
+    if (isDesktopWindowed) {
+      windowManager.addListener(this);
+      windowManager.isMaximized().then((v) {
+        if (mounted) setState(() => _maximized = v);
+      });
+    }
     _clockTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted) setState(() => _now = DateTime.now());
     });
@@ -37,7 +43,7 @@ class _CustomTitleBarState extends State<CustomTitleBar> with WindowListener {
 
   @override
   void dispose() {
-    windowManager.removeListener(this);
+    if (isDesktopWindowed) windowManager.removeListener(this);
     _clockTimer?.cancel();
     super.dispose();
   }

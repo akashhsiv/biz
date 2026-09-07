@@ -5,6 +5,7 @@ import 'package:window_manager/window_manager.dart';
 import 'app.dart';
 import 'core/auth/auth_controller.dart';
 import 'core/logging/file_logger.dart';
+import 'core/platform/desktop_window.dart';
 import 'features/shops/shops_provider.dart';
 import 'shared/widgets/custom_title_bar.dart';
 import 'shared/widgets/overlay_host.dart';
@@ -20,19 +21,24 @@ void main() {
 }
 
 Future<void> _initWindowAndRun() async {
-  // Frameless window (confirmed decision 2026-08-28) - CustomTitleBar (mounted in _Bootstrap/ErpApp
-  // below) replaces the native title bar entirely with its own draggable/sidebar-themed one.
-  await windowManager.ensureInitialized();
-  // Below this, the sidebar + master-detail/table layouts start clipping and overlapping rather
-  // than reflowing - there's no responsive breakpoint for "narrower than the sidebar can support",
-  // so the window itself is kept from ever getting that small instead.
-  const minimumSize = Size(1024, 700);
-  const windowOptions = WindowOptions(titleBarStyle: TitleBarStyle.hidden, size: Size(1280, 800), minimumSize: minimumSize);
-  windowManager.waitUntilReadyToShow(windowOptions, () async {
-    await windowManager.setMinimumSize(minimumSize);
-    await windowManager.show();
-    await windowManager.focus();
-  });
+  // window_manager has no Android/iOS implementation - guard every call behind isDesktopWindowed
+  // (Platform.isWindows today) so a mobile build doesn't crash on startup calling into a platform
+  // channel nothing registered.
+  if (isDesktopWindowed) {
+    // Frameless window (confirmed decision 2026-08-28) - CustomTitleBar (mounted in _Bootstrap/ErpApp
+    // below) replaces the native title bar entirely with its own draggable/sidebar-themed one.
+    await windowManager.ensureInitialized();
+    // Below this, the sidebar + master-detail/table layouts start clipping and overlapping rather
+    // than reflowing - there's no responsive breakpoint for "narrower than the sidebar can support",
+    // so the window itself is kept from ever getting that small instead.
+    const minimumSize = Size(1024, 700);
+    const windowOptions = WindowOptions(titleBarStyle: TitleBarStyle.hidden, size: Size(1280, 800), minimumSize: minimumSize);
+    windowManager.waitUntilReadyToShow(windowOptions, () async {
+      await windowManager.setMinimumSize(minimumSize);
+      await windowManager.show();
+      await windowManager.focus();
+    });
+  }
 
   runApp(const ProviderScope(child: _Bootstrap()));
 }
