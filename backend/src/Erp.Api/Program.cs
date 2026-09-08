@@ -24,6 +24,13 @@ builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 builder.Services.AddHttpContextAccessor();
 
+// Native Dio clients (Windows/Android app) aren't subject to CORS at all - this only matters if a
+// browser-based client (a future web build, or testing via a browser tool) ever calls this API.
+// AllowAnyOrigin is safe here since auth is Bearer-token based, never cookies - there's no
+// credentialed cross-site request for a wildcard origin to expose.
+builder.Services.AddCors(options => options.AddDefaultPolicy(policy =>
+    policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod()));
+
 builder.Services.AddDbContext<ErpDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("ErpDatabase")));
 
@@ -89,6 +96,8 @@ using (var scope = app.Services.CreateScope())
 }
 
 app.UseMiddleware<ExceptionHandlingMiddleware>();
+
+app.UseCors();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())

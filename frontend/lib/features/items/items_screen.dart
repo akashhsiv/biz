@@ -11,6 +11,9 @@ import '../../shared/widgets/app_list_card.dart';
 import '../../shared/widgets/list_screen_shortcuts.dart';
 import '../../shared/widgets/page_header.dart';
 import '../../shared/widgets/skeleton_loader.dart';
+import '../categories/categories_provider.dart';
+import 'brand_model.dart';
+import 'brands_provider.dart';
 import 'item_model.dart';
 import 'items_provider.dart';
 
@@ -154,6 +157,8 @@ class _CreateItemDialogState extends ConsumerState<_CreateItemDialog> {
   bool _serialTracked = false;
   bool _saving = false;
   String? _error;
+  String? _categoryId;
+  String? _brandId;
 
   Future<void> _save() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
@@ -170,7 +175,8 @@ class _CreateItemDialogState extends ConsumerState<_CreateItemDialog> {
       body: {
         'sku': _sku.text.trim(),
         'name': _name.text.trim(),
-        'categoryId': null,
+        'categoryId': _categoryId,
+        'brandId': _brandId,
         'unit': _unit,
         'itemKind': _kind.index,
         'purchasePrice': double.tryParse(_purchasePrice.text) ?? 0,
@@ -226,6 +232,77 @@ class _CreateItemDialogState extends ConsumerState<_CreateItemDialog> {
               ),
               const SizedBox(height: 8),
               TextField(controller: _hsnCode, decoration: const InputDecoration(labelText: 'HSN/SAC Code (optional)')),
+              const SizedBox(height: 8),
+              Consumer(
+                builder: (context, ref, _) {
+                  final categoriesAsync = ref.watch(categoriesProvider);
+                  return categoriesAsync.when(
+                    data: (categories) {
+                      // Default to the shop's Cash Bill category (or the first available) so a new
+                      // item is never left without a category, since Purchase/Sales creation now
+                      // requires every line item to belong to the document's chosen category.
+                      if (_categoryId == null && categories.isNotEmpty) {
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          if (mounted) setState(() => _categoryId = categories.first.id);
+                        });
+                      }
+                      return DropdownButtonFormField<String>(
+                        initialValue: _categoryId,
+                        decoration: const InputDecoration(labelText: 'Category *'),
+                        items: categories.map((c) => DropdownMenuItem(value: c.id, child: Text(c.name))).toList(),
+                        validator: (v) => v == null ? 'Category is required' : null,
+                        onChanged: (v) => setState(() {
+                          _categoryId = v;
+                          _brandId = null; // a brand belongs to exactly one category - clear on switch
+                        }),
+                      );
+                    },
+                    loading: () => const LinearProgressIndicator(),
+                    error: (e, _) => Text('Failed to load categories: $e', style: TextStyle(color: Theme.of(context).colorScheme.error)),
+                  );
+                },
+              ),
+              const SizedBox(height: 8),
+              if (_categoryId != null)
+                Consumer(
+                  builder: (context, ref, _) {
+                    final brandsAsync = ref.watch(brandsProvider(_categoryId));
+                    return brandsAsync.when(
+                      data: (brands) => Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Expanded(
+                            child: DropdownButtonFormField<String?>(
+                              initialValue: _brandId,
+                              decoration: const InputDecoration(labelText: 'Brand (optional)'),
+                              items: [
+                                const DropdownMenuItem<String?>(value: null, child: Text('No brand')),
+                                ...brands.map((b) => DropdownMenuItem<String?>(value: b.id, child: Text(b.name))),
+                              ],
+                              onChanged: (v) => setState(() => _brandId = v),
+                            ),
+                          ),
+                          IconButton(
+                            tooltip: 'New Brand',
+                            icon: const Icon(Icons.add_circle_outline),
+                            onPressed: () async {
+                              final created = await showDialog<Brand>(
+                                context: context,
+                                builder: (_) => _NewBrandDialog(categoryId: _categoryId!),
+                              );
+                              if (created != null) {
+                                ref.invalidate(brandsProvider(_categoryId));
+                                setState(() => _brandId = created.id);
+                              }
+                            },
+                          ),
+                        ],
+                      ),
+                      loading: () => const LinearProgressIndicator(),
+                      error: (e, _) => Text('Failed to load brands: $e', style: TextStyle(color: Theme.of(context).colorScheme.error)),
+                    );
+                  },
+                ),
               const SizedBox(height: 8),
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -300,6 +377,66 @@ class _CreateItemDialogState extends ConsumerState<_CreateItemDialog> {
       actions: [
         TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel')),
         FilledButton(onPressed: _saving ? null : _save, child: const Text('Save')),
+      ],
+    );
+  }
+}
+
+/// Minimal inline brand creation, reached from the "+" next to the Brand dropdown above — this is
+/// the only place in the app a Brand can be created, since a Brand always needs a Category and this
+/// dialog already knows which one is selected.
+class _NewBrandDialog extends ConsumerStatefulWidget {
+  final String categoryId;
+  const _NewBrandDialog({required this.categoryId});
+
+  @override
+  ConsumerState<_NewBrandDialog> createState() => _NewBrandDialogState();
+}
+
+class _NewBrandDialogState extends ConsumerState<_NewBrandDialog> {
+  final _name = TextEditingController();
+  bool _saving = false;
+  String? _error;
+
+  Future<void> _save() async {
+    final name = _name.text.trim();
+    if (name.isEmpty) return;
+
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+
+    final created = await createBrand(ref, name, widget.categoryId, onError: (msg) => _error = msg);
+
+    if (!mounted) return;
+    if (created != null) {
+      Navigator.of(context).pop(created);
+    } else {
+      setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('New Brand'),
+      content: SizedBox(
+        width: 320,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(controller: _name, autofocus: true, decoration: const InputDecoration(labelText: 'Brand name *'), onSubmitted: (_) => _save()),
+            if (_error != null) ...[
+              const SizedBox(height: 8),
+              Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+            ],
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel')),
+        FilledButton(onPressed: _saving ? null : _save, child: const Text('Create')),
       ],
     );
   }

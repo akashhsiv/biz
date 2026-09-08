@@ -32,9 +32,9 @@ class CategoryWorkspaceScreen extends StatelessWidget {
                   Expanded(
                     child: Text(category.name, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
                   ),
-                  IconButton(
-                    tooltip: 'Manage Categories',
-                    icon: const Icon(Icons.category_outlined, size: 20),
+                  OutlinedButton.icon(
+                    icon: const Icon(Icons.category_outlined, size: 18),
+                    label: const Text('Manage Categories'),
                     onPressed: () => showDialog(context: context, builder: (_) => const ManageCategoriesDialog()),
                   ),
                 ],

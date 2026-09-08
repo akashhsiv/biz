@@ -6,6 +6,8 @@ backend/**/chromium-cache/
 # Local secrets — never commit real credentials
 backend/src/Erp.Api/appsettings.Development.json
 backend/src/Erp.Api/appsettings.Production.json
+backend/secrets/
+frontend/android/app/google-services.json
 
 # Node (WhatsApp bridge)
 whatsapp-service/node_modules/
