@@ -10,9 +10,17 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Erp.Api.Controllers;
 
-public record CreateShopRequest(string Name, string? Gstin, string? Address, string? ContactNumber);
+/// <summary>Shop name/address/contact number and the first Shop Admin's credentials are all required
+/// together — a shop is provisioned with exactly one admin able to sign into it from the moment it
+/// exists, never in a half-created state with no one able to log in. AdminPassword is optional; if
+/// omitted a secure one is generated (see GenerateRandomPassword) and returned once in the response.</summary>
+public record CreateShopRequest(
+    string Name, string Address, string ContactNumber, string? Gstin,
+    string AdminUsername, string AdminFullName, string? AdminPassword);
 
 public record ShopAdminSummaryDto(Guid Id, string Name, string Gstin, string? Address, string? ContactNumber, bool IsActive);
+
+public record CreateShopResult(ShopAdminSummaryDto Shop, Guid AdminUserId, string AdminUsername, string AdminFullName, string AdminPassword);
 
 public record CreateShopAdminRequest(string Username, string FullName, string? Password);
 
@@ -42,19 +50,36 @@ public class AdminController(ErpDbContext db) : ControllerBase
     }
 
     /// <summary>Creates a new Shop under the single Company row (Company is a one-row tenant table for
-    /// the foreseeable future — see Company.cs). Also creates the CompanySettings row every shop needs
-    /// (CompanySettingsController/DbSeeder both assume exactly one CompanySettings per shop). Roles
-    /// ("Shop Admin"/"Sales Team"/"Purchase Team") are NOT created here — DbSeeder.SeedRolesAsync shows
-    /// Role rows are global/shared across shops (looked up by name, with no ShopId), so a new shop reuses
-    /// the existing global roles rather than getting its own copies.</summary>
+    /// the foreseeable future — see Company.cs) together with its first Shop Admin login, atomically —
+    /// a shop never exists with no one able to sign into it. Also creates the CompanySettings row every
+    /// shop needs (CompanySettingsController/DbSeeder both assume exactly one CompanySettings per shop).
+    /// Roles ("Shop Admin"/"Sales Team"/"Purchase Team") are NOT created here — DbSeeder.SeedRolesAsync
+    /// shows Role rows are global/shared across shops (looked up by name, with no ShopId), so a new shop
+    /// reuses the existing global "Shop Admin" role rather than getting its own copy. Use
+    /// POST shops/{shopId}/admins afterward to add further admins to an existing shop.</summary>
     [HttpPost("shops")]
-    public async Task<ActionResult<ShopAdminSummaryDto>> CreateShop(CreateShopRequest request, CancellationToken ct)
+    public async Task<ActionResult<CreateShopResult>> CreateShop(CreateShopRequest request, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(request.Name))
             throw new ValidationAppException("Shop name is required.");
+        if (string.IsNullOrWhiteSpace(request.Address))
+            throw new ValidationAppException("Shop address is required.");
+        if (string.IsNullOrWhiteSpace(request.ContactNumber))
+            throw new ValidationAppException("Shop contact number is required.");
+        if (string.IsNullOrWhiteSpace(request.AdminUsername))
+            throw new ValidationAppException("Admin username is required.");
+        if (string.IsNullOrWhiteSpace(request.AdminFullName))
+            throw new ValidationAppException("Admin full name is required.");
+
+        var usernameTaken = await db.Users.IgnoreQueryFilters().AnyAsync(u => u.Username == request.AdminUsername, ct);
+        if (usernameTaken)
+            throw new ConflictAppException("Username is already taken.");
 
         var company = await db.Companies.FirstOrDefaultAsync(ct)
             ?? throw new ConflictAppException("No Company row exists — run the app once so DbSeeder can create it.");
+
+        var shopAdminRole = await db.Roles.FirstOrDefaultAsync(r => r.Name == "Shop Admin", ct)
+            ?? throw new ConflictAppException("\"Shop Admin\" role does not exist — run the app once so DbSeeder can create it.");
 
         var shop = new Shop
         {
@@ -64,8 +89,8 @@ public class AdminController(ErpDbContext db) : ControllerBase
             // allowance for provisioning a shop before its GST details are known, to be filled in later
             // via CompanySettingsController rather than blocking creation on it.
             Gstin = request.Gstin?.Trim() ?? string.Empty,
-            Address = request.Address?.Trim(),
-            ContactNumber = request.ContactNumber?.Trim(),
+            Address = request.Address.Trim(),
+            ContactNumber = request.ContactNumber.Trim(),
             IsActive = true,
         };
         db.Shops.Add(shop);
@@ -80,15 +105,38 @@ public class AdminController(ErpDbContext db) : ControllerBase
             State = string.Empty,
         });
 
+        var password = string.IsNullOrWhiteSpace(request.AdminPassword) ? GenerateRandomPassword() : request.AdminPassword;
+
+        var admin = new User
+        {
+            Username = request.AdminUsername.Trim(),
+            FullName = request.AdminFullName.Trim(),
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword(password),
+            IsActive = true,
+            IsSuperAdmin = false,
+            Role = shopAdminRole,
+        };
+        db.Users.Add(admin);
+
+        db.Set<UserShopRole>().Add(new UserShopRole
+        {
+            User = admin,
+            Shop = shop,
+            Role = shopAdminRole,
+        });
+
         await db.SaveChangesAsync(ct);
 
-        return Ok(new ShopAdminSummaryDto(shop.Id, shop.Name, shop.Gstin, shop.Address, shop.ContactNumber, shop.IsActive));
+        var shopDto = new ShopAdminSummaryDto(shop.Id, shop.Name, shop.Gstin, shop.Address, shop.ContactNumber, shop.IsActive);
+        return Ok(new CreateShopResult(shopDto, admin.Id, admin.Username, admin.FullName, password));
     }
 
-    /// <summary>Creates a new User (IsSuperAdmin=false) and grants it "Shop Admin" access to the given
-    /// shop via UserShopRole. If no password is supplied, a securely random one is generated and
-    /// returned in the response — the only place it is ever available in plaintext; only its BCrypt
-    /// hash (same mechanism DbSeeder.SeedAdminUserAsync already uses) is persisted.</summary>
+    /// <summary>Adds a further admin to an already-existing shop (the first admin is created atomically
+    /// with the shop itself by POST shops above). Creates a new User (IsSuperAdmin=false) and grants it
+    /// "Shop Admin" access to the given shop via UserShopRole. If no password is supplied, a securely
+    /// random one is generated and returned in the response — the only place it is ever available in
+    /// plaintext; only its BCrypt hash (same mechanism DbSeeder.SeedAdminUserAsync already uses) is
+    /// persisted.</summary>
     [HttpPost("shops/{shopId:guid}/admins")]
     public async Task<ActionResult<CreateShopAdminResult>> CreateShopAdmin(Guid shopId, CreateShopAdminRequest request, CancellationToken ct)
     {
