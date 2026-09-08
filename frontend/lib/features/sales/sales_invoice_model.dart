@@ -51,6 +51,7 @@ class SalesInvoice {
   final String id;
   final String invoiceNumber;
   final String customerId;
+  final String categoryId;
   final SalesInvoiceStatus status;
   final double subtotal;
   final double overallDiscountAmount;
@@ -70,6 +71,7 @@ class SalesInvoice {
     required this.id,
     required this.invoiceNumber,
     required this.customerId,
+    required this.categoryId,
     required this.status,
     this.subtotal = 0,
     this.overallDiscountAmount = 0,
@@ -90,6 +92,7 @@ class SalesInvoice {
         id: json['id'] as String,
         invoiceNumber: json['invoiceNumber'] as String,
         customerId: json['customerId'] as String,
+        categoryId: json['categoryId'] as String? ?? '',
         status: SalesInvoiceStatus.values[json['status'] as int],
         subtotal: (json['subtotal'] as num?)?.toDouble() ?? 0,
         overallDiscountAmount: (json['overallDiscountAmount'] as num?)?.toDouble() ?? 0,

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/auth/auth_controller.dart';
+import '../../core/constants/permissions.dart';
 import '../../core/network/api_result.dart';
 import '../../core/providers.dart';
 import '../../core/theme/app_theme.dart';
@@ -16,12 +18,14 @@ import '../../shared/widgets/pdf_button.dart';
 import '../../shared/widgets/reason_dialog.dart';
 import '../../shared/widgets/searchable_dropdown.dart';
 import '../../shared/widgets/skeleton_loader.dart';
+import '../items/brands_provider.dart';
 import '../items/item_model.dart';
 import '../items/items_provider.dart';
 import '../reports/document_payment_status.dart';
 import '../users/user_directory_provider.dart';
 import 'purchase_order_model.dart';
 import 'purchases_provider.dart';
+import 'supplier_model.dart';
 
 const _pageSize = 20;
 
@@ -47,34 +51,16 @@ Widget _balancePaymentStatusPill(DocumentPaymentStatus status) => switch (status
       DocumentPaymentStatus.overdue => StatusPill.error(status.label),
     };
 
+/// Vendor management — reachable as its own top-level nav entry now that Purchase Orders live
+/// under each Category's workspace (see CategoryWorkspaceScreen) instead of a flat "Purchases"
+/// screen. Vendor-Brand linking (needed for the Purchase create flow's Vendor -> Brand cascade)
+/// happens from a supplier's row action here.
 class PurchasesScreen extends StatelessWidget {
   const PurchasesScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return DefaultTabController(
-      length: 2,
-      child: Scaffold(
-        backgroundColor: AppPalette.surface,
-        body: Column(
-          children: [
-            Container(
-              color: AppPalette.card,
-              padding: const EdgeInsets.fromLTRB(24, 12, 24, 0),
-              child: const TabBar(
-                isScrollable: true,
-                tabAlignment: TabAlignment.start,
-                labelColor: AppPalette.primary,
-                unselectedLabelColor: AppPalette.textSecondary,
-                indicatorColor: AppPalette.primary,
-                tabs: [Tab(text: 'Purchase Orders'), Tab(text: 'Suppliers')],
-              ),
-            ),
-            const Expanded(child: TabBarView(children: [_PurchaseOrdersTab(), _SuppliersTab()])),
-          ],
-        ),
-      ),
-    );
+    return const Scaffold(backgroundColor: AppPalette.surface, body: _SuppliersTab());
   }
 }
 
@@ -124,6 +110,7 @@ class _SuppliersTabState extends ConsumerState<_SuppliersTab> {
                       AppListColumn('State', flex: 2),
                       AppListColumn('GST Number', flex: 2),
                       AppListColumn('Contact', flex: 2),
+                      AppListColumn('Brands', flex: 2),
                     ],
                     itemCount: suppliers.length,
                     itemsPerPage: _pageSize,
@@ -136,6 +123,10 @@ class _SuppliersTabState extends ConsumerState<_SuppliersTab> {
                         Text(s.state ?? '-', style: const TextStyle(color: AppPalette.textSecondary, fontSize: 13)),
                         Text(s.gstNumber ?? '-', style: const TextStyle(color: AppPalette.textSecondary, fontSize: 13)),
                         Text(s.contactNumber ?? '-', style: const TextStyle(color: AppPalette.textSecondary, fontSize: 13)),
+                        TextButton(
+                          onPressed: () => showDialog(context: context, builder: (_) => ManageVendorBrandsDialog(supplier: s)),
+                          child: const Text('Manage'),
+                        ),
                       ];
                     },
                   ),
@@ -256,47 +247,80 @@ String _formatPoDate(DateTime d) {
   return '${d.day} ${months[d.month - 1]} ${d.year}';
 }
 
-class _PurchaseOrdersTab extends ConsumerStatefulWidget {
-  const _PurchaseOrdersTab();
+/// The Purchase List tab of a Category's workspace (see CategoryWorkspaceScreen) — every purchase
+/// order shown here belongs to [categoryId], with the full filter set the backend supports
+/// (supplier, brand, status, balance payment status, date range, search, overdue-only).
+class CategoryPurchaseOrdersTab extends ConsumerStatefulWidget {
+  final String categoryId;
+  const CategoryPurchaseOrdersTab({super.key, required this.categoryId});
 
   @override
-  ConsumerState<_PurchaseOrdersTab> createState() => _PurchaseOrdersTabState();
+  ConsumerState<CategoryPurchaseOrdersTab> createState() => _CategoryPurchaseOrdersTabState();
 }
 
-class _PurchaseOrdersTabState extends ConsumerState<_PurchaseOrdersTab> {
+class _CategoryPurchaseOrdersTabState extends ConsumerState<CategoryPurchaseOrdersTab> {
   String? _selectedId;
   final _search = TextEditingController();
   PurchaseOrderStatus? _statusFilter;
+  DocumentPaymentStatus? _balanceFilter;
+  String? _supplierFilter;
+  String? _brandFilter;
+  DateTime? _from;
+  DateTime? _to;
+  bool _overdueOnly = false;
+
+  PurchaseListFilter get _filter => PurchaseListFilter(
+        categoryId: widget.categoryId,
+        supplierId: _supplierFilter,
+        brandId: _brandFilter,
+        status: _statusFilter,
+        balancePaymentStatus: _balanceFilter,
+        from: _from,
+        to: _to,
+        search: _search.text.trim().isEmpty ? null : _search.text.trim(),
+        overdueOnly: _overdueOnly,
+      );
+
+  Future<void> _pickDateRange() async {
+    final now = DateTime.now();
+    final range = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(now.year - 5),
+      lastDate: DateTime(now.year + 1),
+      initialDateRange: _from != null && _to != null ? DateTimeRange(start: _from!, end: _to!) : null,
+    );
+    if (range != null) {
+      setState(() {
+        _from = range.start;
+        _to = range.end;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final ordersAsync = ref.watch(purchaseOrdersProvider);
+    final filter = _filter;
+    final ordersAsync = ref.watch(purchaseOrdersFilteredProvider(filter));
     final suppliersAsync = ref.watch(suppliersProvider);
+    final brandsAsync = ref.watch(brandsProvider(widget.categoryId));
     final usersAsync = ref.watch(userDirectoryProvider);
-    void openCreate() => showDialog(context: context, builder: (_) => const _CreatePurchaseOrderDialog());
+    void openCreate() => showDialog(context: context, builder: (_) => _CreatePurchaseOrderDialog(categoryId: widget.categoryId));
+    void refresh() => ref.invalidate(purchaseOrdersFilteredProvider(filter));
 
     return ListScreenShortcuts(
       tabIndex: 0,
-      onRefresh: () => ref.invalidate(purchaseOrdersProvider),
+      onRefresh: refresh,
       onNew: openCreate,
       child: Scaffold(
         floatingActionButton: AppFab(onPressed: openCreate, tooltip: 'New Purchase Order (Ctrl+N)', label: 'New Purchase Order'),
         body: ordersAsync.when(
           data: (orders) {
             final suppliers = suppliersAsync.valueOrNull ?? [];
+            final brands = brandsAsync.valueOrNull ?? [];
             final nameOf = {for (final s in suppliers) s.id: s.name};
             final userNameOf = <String, String>{for (final u in usersAsync.valueOrNull ?? const []) u.id: u.fullName};
 
-            var filtered = orders;
-            if (_statusFilter != null) filtered = filtered.where((o) => o.status == _statusFilter).toList();
-            final query = _search.text.trim().toLowerCase();
-            if (query.isNotEmpty) {
-              filtered = filtered
-                  .where((o) => o.poNumber.toLowerCase().contains(query) || (nameOf[o.supplierId] ?? '').toLowerCase().contains(query))
-                  .toList();
-            }
-
-            final selected = filtered.where((o) => o.id == _selectedId).firstOrNull;
+            final selected = orders.where((o) => o.id == _selectedId).firstOrNull;
 
             return Padding(
               padding: const EdgeInsets.all(24),
@@ -304,17 +328,31 @@ class _PurchaseOrdersTabState extends ConsumerState<_PurchaseOrdersTab> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   PageHeader(
-                    title: 'Purchase Orders',
+                    title: 'Purchase List',
                     subtitle: 'Orders placed with suppliers and their receiving/payment status',
                     actions: [
                       SizedBox(
-                        width: 240,
+                        width: 220,
                         height: 40,
                         child: TextField(
                           controller: _search,
                           onChanged: (_) => setState(() {}),
-                          decoration: const InputDecoration(isDense: true, prefixIcon: Icon(Icons.search, size: 18), hintText: 'Search purchase orders...'),
+                          decoration: const InputDecoration(isDense: true, prefixIcon: Icon(Icons.search, size: 18), hintText: 'Search PO #...'),
                         ),
+                      ),
+                      FilterButton<String>(
+                        value: _supplierFilter,
+                        allLabel: 'All Suppliers',
+                        options: suppliers.map((s) => s.id).toList(),
+                        labelOf: (id) => nameOf[id] ?? id,
+                        onChanged: (v) => setState(() => _supplierFilter = v),
+                      ),
+                      FilterButton<String>(
+                        value: _brandFilter,
+                        allLabel: 'All Brands',
+                        options: brands.map((b) => b.id).toList(),
+                        labelOf: (id) => brands.where((b) => b.id == id).firstOrNull?.name ?? id,
+                        onChanged: (v) => setState(() => _brandFilter = v),
                       ),
                       FilterButton<PurchaseOrderStatus>(
                         value: _statusFilter,
@@ -323,20 +361,33 @@ class _PurchaseOrdersTabState extends ConsumerState<_PurchaseOrdersTab> {
                         labelOf: (s) => s.name,
                         onChanged: (v) => setState(() => _statusFilter = v),
                       ),
-                      OutlinedButton.icon(
-                        onPressed: () => ref.invalidate(purchaseOrdersProvider),
-                        icon: const Icon(Icons.refresh, size: 16),
-                        label: const Text('Refresh'),
+                      FilterButton<DocumentPaymentStatus>(
+                        value: _balanceFilter,
+                        allLabel: 'All Balances',
+                        options: DocumentPaymentStatus.values,
+                        labelOf: (s) => s.label,
+                        onChanged: (v) => setState(() => _balanceFilter = v),
                       ),
+                      OutlinedButton.icon(
+                        onPressed: _pickDateRange,
+                        icon: const Icon(Icons.date_range, size: 16),
+                        label: Text(_from == null ? 'Date Range' : '${_from!.day}/${_from!.month} - ${_to!.day}/${_to!.month}'),
+                      ),
+                      FilterChip(
+                        label: const Text('Overdue only'),
+                        selected: _overdueOnly,
+                        onSelected: (v) => setState(() => _overdueOnly = v),
+                      ),
+                      OutlinedButton.icon(onPressed: refresh, icon: const Icon(Icons.refresh, size: 16), label: const Text('Refresh')),
                     ],
                   ),
                   const SizedBox(height: 16),
                   Expanded(
-                    child: filtered.isEmpty
+                    child: orders.isEmpty
                         ? const Center(child: Text('No purchase orders found.'))
                         : selected == null
                             ? _PurchaseOrderListCard(
-                                orders: filtered,
+                                orders: orders,
                                 nameOf: nameOf,
                                 userNameOf: userNameOf,
                                 selectedId: null,
@@ -348,7 +399,7 @@ class _PurchaseOrdersTabState extends ConsumerState<_PurchaseOrdersTab> {
                                   Expanded(
                                     flex: 4,
                                     child: _PurchaseOrderListCard(
-                                      orders: filtered,
+                                      orders: orders,
                                       nameOf: nameOf,
                                       userNameOf: userNameOf,
                                       selectedId: selected.id,
@@ -440,6 +491,7 @@ class _PurchaseOrderDetailPanelState extends ConsumerState<_PurchaseOrderDetailP
     switch (result) {
       case ApiSuccess():
         ref.invalidate(purchaseOrdersProvider);
+        ref.invalidate(purchaseOrdersFilteredProvider);
         onSuccess?.call();
       case ApiFailure(message: final msg):
         AppToast.error(msg);
@@ -603,7 +655,9 @@ class _PurchaseOrderDetailPanelState extends ConsumerState<_PurchaseOrderDetailP
                   if (o.status == PurchaseOrderStatus.draft) FilledButton(onPressed: _submit, child: const Text('Submit')),
                   if (o.status == PurchaseOrderStatus.submitted || o.status == PurchaseOrderStatus.processing)
                     FilledButton(onPressed: _receive, child: const Text('Receive Goods')),
-                  if (o.status != PurchaseOrderStatus.completed && o.status != PurchaseOrderStatus.cancelled)
+                  if (o.status != PurchaseOrderStatus.completed &&
+                      o.status != PurchaseOrderStatus.cancelled &&
+                      ref.watch(authControllerProvider).has(Permissions.purchaseOrdersCancel))
                     OutlinedButton(
                       onPressed: _cancel,
                       style: OutlinedButton.styleFrom(foregroundColor: AppPalette.error, side: const BorderSide(color: AppPalette.error)),
@@ -819,7 +873,8 @@ class _ReceiveDialogState extends ConsumerState<_ReceiveDialog> {
 }
 
 class _CreatePurchaseOrderDialog extends ConsumerStatefulWidget {
-  const _CreatePurchaseOrderDialog();
+  final String categoryId;
+  const _CreatePurchaseOrderDialog({required this.categoryId});
 
   @override
   ConsumerState<_CreatePurchaseOrderDialog> createState() => _CreatePurchaseOrderDialogState();
@@ -833,6 +888,7 @@ class _PoDraftLine {
 
 class _CreatePurchaseOrderDialogState extends ConsumerState<_CreatePurchaseOrderDialog> {
   String? _supplierId;
+  String? _brandId;
   final List<_PoDraftLine> _lines = [_PoDraftLine()];
   bool _saving = false;
   String? _error;
@@ -841,8 +897,8 @@ class _CreatePurchaseOrderDialogState extends ConsumerState<_CreatePurchaseOrder
     // A line with no item picked is just an unused blank row - it should never block saving or
     // need to be filled in, only real lines count.
     final realLines = _lines.where((l) => l.itemId != null).toList();
-    if (_supplierId == null || realLines.isEmpty) {
-      setState(() => _error = 'Select a supplier and at least one item.');
+    if (_supplierId == null || _brandId == null || realLines.isEmpty) {
+      setState(() => _error = 'Select a vendor, a brand, and at least one item.');
       return;
     }
 
@@ -857,6 +913,7 @@ class _CreatePurchaseOrderDialogState extends ConsumerState<_CreatePurchaseOrder
       (json) => json as Map<String, dynamic>,
       body: {
         'supplierId': _supplierId,
+        'categoryId': widget.categoryId,
         'lines': realLines.map((l) => {'itemId': l.itemId, 'quantityOrdered': l.quantity, 'rate': l.rate}).toList(),
       },
     );
@@ -866,6 +923,8 @@ class _CreatePurchaseOrderDialogState extends ConsumerState<_CreatePurchaseOrder
     switch (result) {
       case ApiSuccess():
         ref.invalidate(purchaseOrdersProvider);
+        ref.invalidate(purchaseOrdersFilteredProvider);
+        AppToast.success('Purchase order created.');
         Navigator.of(context).pop();
       case ApiFailure(message: final msg):
         setState(() {
@@ -883,7 +942,10 @@ class _CreatePurchaseOrderDialogState extends ConsumerState<_CreatePurchaseOrder
   @override
   Widget build(BuildContext context) {
     final suppliersAsync = ref.watch(suppliersProvider);
-    final itemsAsync = ref.watch(itemsProvider);
+    final vendorBrandsAsync = _supplierId == null ? null : ref.watch(vendorBrandsProvider(_supplierId));
+    final itemsAsync = _brandId == null
+        ? null
+        : ref.watch(itemsFilteredProvider(ItemsFilter(categoryId: widget.categoryId, brandId: _brandId)));
 
     return AlertDialog(
       title: const Text('New Purchase Order'),
@@ -896,39 +958,64 @@ class _CreatePurchaseOrderDialogState extends ConsumerState<_CreatePurchaseOrder
             children: [
               suppliersAsync.when(
                 data: (suppliers) => SearchableDropdown<String>(
-                  label: 'Supplier',
+                  label: 'Vendor',
                   value: _supplierId,
                   items: suppliers.map((s) => s.id).toList(),
                   itemLabel: (id) => suppliers.firstWhere((s) => s.id == id).name,
-                  onChanged: (v) => setState(() => _supplierId = v),
-                  validator: (v) => v == null ? 'Select a supplier' : null,
+                  onChanged: (v) => setState(() {
+                    _supplierId = v;
+                    _brandId = null;
+                  }),
+                  validator: (v) => v == null ? 'Select a vendor' : null,
                 ),
                 loading: () => const LinearProgressIndicator(),
-                error: (_, _) => const Text('Could not load suppliers.'),
+                error: (_, _) => const Text('Could not load vendors.'),
               ),
               const SizedBox(height: 12),
-              itemsAsync.when(
-                data: (items) => Column(
-                  children: [
-                    ..._lines.asMap().entries.map((entry) => _PoLineRow(
-                          items: items,
-                          line: entry.value,
-                          onChanged: () => setState(() {}),
-                          onRemove: _lines.length > 1 ? () => setState(() => _lines.removeAt(entry.key)) : null,
-                        )),
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: TextButton.icon(
-                        onPressed: () => setState(() => _lines.add(_PoDraftLine())),
-                        icon: const Icon(Icons.add),
-                        label: const Text('Add line'),
-                      ),
-                    ),
-                  ],
+              if (_supplierId == null)
+                const Text('Select a vendor to see the brands they supply.', style: TextStyle(color: AppPalette.textMuted, fontSize: 12))
+              else
+                vendorBrandsAsync!.when(
+                  data: (links) => links.isEmpty
+                      ? const Text('This vendor has no brands linked yet — link one from Suppliers first.',
+                          style: TextStyle(color: AppPalette.error, fontSize: 12))
+                      : SearchableDropdown<String>(
+                          label: 'Brand',
+                          value: _brandId,
+                          items: links.map((l) => l.brandId).toList(),
+                          itemLabel: (id) => links.firstWhere((l) => l.brandId == id).brandName,
+                          onChanged: (v) => setState(() => _brandId = v),
+                          validator: (v) => v == null ? 'Select a brand' : null,
+                        ),
+                  loading: () => const LinearProgressIndicator(),
+                  error: (_, _) => const Text('Could not load this vendor\'s brands.'),
                 ),
-                loading: () => const LinearProgressIndicator(),
-                error: (_, _) => const Text('Could not load items.'),
-              ),
+              const SizedBox(height: 12),
+              if (_brandId == null)
+                const Text('Select a brand to add line items.', style: TextStyle(color: AppPalette.textMuted, fontSize: 12))
+              else
+                itemsAsync!.when(
+                  data: (items) => Column(
+                    children: [
+                      ..._lines.asMap().entries.map((entry) => _PoLineRow(
+                            items: items,
+                            line: entry.value,
+                            onChanged: () => setState(() {}),
+                            onRemove: _lines.length > 1 ? () => setState(() => _lines.removeAt(entry.key)) : null,
+                          )),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: TextButton.icon(
+                          onPressed: () => setState(() => _lines.add(_PoDraftLine())),
+                          icon: const Icon(Icons.add),
+                          label: const Text('Add line'),
+                        ),
+                      ),
+                    ],
+                  ),
+                  loading: () => const LinearProgressIndicator(),
+                  error: (_, _) => const Text('Could not load items.'),
+                ),
               if (_error != null) ...[
                 const SizedBox(height: 8),
                 Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
@@ -998,6 +1085,117 @@ class _PoLineRow extends StatelessWidget {
           if (onRemove != null) IconButton(icon: const Icon(Icons.remove_circle_outline, size: 18), onPressed: onRemove),
         ],
       ),
+    );
+  }
+}
+
+/// Lets a Shop Admin link/unlink the Brands a Vendor is set up to supply — this is the set a
+/// Purchase Order line's Item.Brand must belong to when ordering from that vendor (backend-
+/// enforced in PurchaseOrdersController.Create).
+class ManageVendorBrandsDialog extends ConsumerStatefulWidget {
+  final Supplier supplier;
+  const ManageVendorBrandsDialog({super.key, required this.supplier});
+
+  @override
+  ConsumerState<ManageVendorBrandsDialog> createState() => _ManageVendorBrandsDialogState();
+}
+
+class _ManageVendorBrandsDialogState extends ConsumerState<ManageVendorBrandsDialog> {
+  String? _addBrandId;
+  bool _busy = false;
+
+  Future<void> _link(String brandId) async {
+    setState(() => _busy = true);
+    final error = await linkVendorBrand(ref, widget.supplier.id, brandId);
+    if (!mounted) return;
+    setState(() {
+      _busy = false;
+      _addBrandId = null;
+    });
+    if (error != null) {
+      AppToast.error(error);
+    } else {
+      ref.invalidate(vendorBrandsProvider(widget.supplier.id));
+    }
+  }
+
+  Future<void> _unlink(String brandId) async {
+    setState(() => _busy = true);
+    final error = await unlinkVendorBrand(ref, widget.supplier.id, brandId);
+    if (!mounted) return;
+    setState(() => _busy = false);
+    if (error != null) {
+      AppToast.error(error);
+    } else {
+      ref.invalidate(vendorBrandsProvider(widget.supplier.id));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final linkedAsync = ref.watch(vendorBrandsProvider(widget.supplier.id));
+    final allBrandsAsync = ref.watch(brandsProvider(null));
+
+    return AlertDialog(
+      title: Text('${widget.supplier.name} — Brands'),
+      content: SizedBox(
+        width: 420,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              linkedAsync.when(
+                data: (links) => links.isEmpty
+                    ? const Padding(padding: EdgeInsets.symmetric(vertical: 8), child: Text('No brands linked yet.'))
+                    : Column(
+                        children: links
+                            .map((l) => ListTile(
+                                  dense: true,
+                                  title: Text(l.brandName),
+                                  trailing: IconButton(
+                                    icon: const Icon(Icons.close, size: 18),
+                                    onPressed: _busy ? null : () => _unlink(l.brandId),
+                                  ),
+                                ))
+                            .toList(),
+                      ),
+                loading: () => const LinearProgressIndicator(),
+                error: (e, _) => Text('Failed to load: $e'),
+              ),
+              const Divider(),
+              allBrandsAsync.when(
+                data: (allBrands) {
+                  final linkedIds = linkedAsync.valueOrNull?.map((l) => l.brandId).toSet() ?? {};
+                  final available = allBrands.where((b) => !linkedIds.contains(b.id)).toList();
+                  if (available.isEmpty) return const Text('Every active brand is already linked.');
+                  return Row(
+                    children: [
+                      Expanded(
+                        child: SearchableDropdown<String>(
+                          label: 'Link a brand',
+                          value: _addBrandId,
+                          items: available.map((b) => b.id).toList(),
+                          itemLabel: (id) => available.firstWhere((b) => b.id == id).name,
+                          onChanged: (v) => setState(() => _addBrandId = v),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      FilledButton(
+                        onPressed: _busy || _addBrandId == null ? null : () => _link(_addBrandId!),
+                        child: const Text('Link'),
+                      ),
+                    ],
+                  );
+                },
+                loading: () => const LinearProgressIndicator(),
+                error: (e, _) => Text('Failed to load brands: $e'),
+              ),
+            ],
+          ),
+        ),
+      ),
+      actions: [TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Close'))],
     );
   }
 }

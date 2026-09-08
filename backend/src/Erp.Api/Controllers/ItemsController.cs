@@ -27,10 +27,12 @@ public class ItemsController(ErpDbContext db, IAuditService audit) : ControllerB
 {
     [HttpGet]
     [RequirePermission(PermissionKeys.ItemsView)]
-    public async Task<ActionResult<List<ItemDto>>> List([FromQuery] bool includeInactive, CancellationToken ct)
+    public async Task<ActionResult<List<ItemDto>>> List([FromQuery] bool includeInactive, [FromQuery] Guid? categoryId, [FromQuery] Guid? brandId, CancellationToken ct)
     {
         var query = db.Items.Include(i => i.StockBalance).AsQueryable();
         if (!includeInactive) query = query.Where(i => i.IsActive);
+        if (categoryId is { } catId) query = query.Where(i => i.CategoryId == catId);
+        if (brandId is { } bId) query = query.Where(i => i.BrandId == bId);
 
         var items = await query.OrderBy(i => i.Name).Select(i => ToDto(i)).ToListAsync(ct);
         return Ok(items);

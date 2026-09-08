@@ -6,6 +6,7 @@ import '../../core/constants/permissions.dart';
 import '../../core/network/api_result.dart';
 import '../../core/providers.dart';
 import '../../core/theme/app_theme.dart';
+import '../../shared/widgets/app_fab.dart';
 import '../../shared/widgets/app_list_card.dart';
 import '../../shared/widgets/app_toast.dart';
 import '../../shared/widgets/filter_button.dart';
@@ -16,9 +17,11 @@ import '../../shared/widgets/reason_dialog.dart';
 import '../../shared/widgets/skeleton_loader.dart';
 import '../../shared/widgets/whatsapp_send_button.dart';
 import '../customers/customers_provider.dart';
+import '../items/brands_provider.dart';
 import '../items/items_provider.dart';
 import '../reports/document_payment_status.dart';
 import '../users/user_directory_provider.dart';
+import 'create_sales_invoice_dialog.dart';
 import 'sales_invoice_model.dart';
 import 'sales_invoices_provider.dart';
 
@@ -37,8 +40,12 @@ Widget _invoicePaymentStatusPill(DocumentPaymentStatus status) => switch (status
       DocumentPaymentStatus.overdue => StatusPill.error(status.label),
     };
 
+/// The Sales List tab of a Category's workspace (see CategoryWorkspaceScreen) — every invoice
+/// shown here belongs to [categoryId], with the full filter set the backend supports (customer,
+/// brand, status, payment status, date range, search, overdue-only).
 class SalesInvoicesScreen extends ConsumerStatefulWidget {
-  const SalesInvoicesScreen({super.key});
+  final String categoryId;
+  const SalesInvoicesScreen({super.key, required this.categoryId});
 
   @override
   ConsumerState<SalesInvoicesScreen> createState() => _SalesInvoicesScreenState();
@@ -48,35 +55,67 @@ class _SalesInvoicesScreenState extends ConsumerState<SalesInvoicesScreen> {
   String? _selectedId;
   final _search = TextEditingController();
   SalesInvoiceStatus? _statusFilter;
+  DocumentPaymentStatus? _paymentFilter;
+  String? _customerFilter;
+  String? _brandFilter;
+  DateTime? _from;
+  DateTime? _to;
+  bool _overdueOnly = false;
+
+  SalesListFilter get _filter => SalesListFilter(
+        categoryId: widget.categoryId,
+        customerId: _customerFilter,
+        brandId: _brandFilter,
+        status: _statusFilter,
+        paymentStatus: _paymentFilter,
+        from: _from,
+        to: _to,
+        search: _search.text.trim().isEmpty ? null : _search.text.trim(),
+        overdueOnly: _overdueOnly,
+      );
+
+  Future<void> _pickDateRange() async {
+    final now = DateTime.now();
+    final range = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(now.year - 5),
+      lastDate: DateTime(now.year + 1),
+      initialDateRange: _from != null && _to != null ? DateTimeRange(start: _from!, end: _to!) : null,
+    );
+    if (range != null) {
+      setState(() {
+        _from = range.start;
+        _to = range.end;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final invoicesAsync = ref.watch(salesInvoicesProvider);
+    final filter = _filter;
+    final invoicesAsync = ref.watch(salesInvoicesFilteredProvider(filter));
     final customersAsync = ref.watch(customersProvider);
+    final brandsAsync = ref.watch(brandsProvider(widget.categoryId));
     final usersAsync = ref.watch(userDirectoryProvider);
     final auth = ref.watch(authControllerProvider);
     final canCancel = auth.has(Permissions.salesInvoicesCancel);
+    void refresh() => ref.invalidate(salesInvoicesFilteredProvider(filter));
+    void openCreate() => showDialog(context: context, builder: (_) => CreateSalesInvoiceDialog(categoryId: widget.categoryId));
 
     return ListScreenShortcuts(
-      onRefresh: () => ref.invalidate(salesInvoicesProvider),
+      onRefresh: refresh,
+      onNew: openCreate,
       child: Scaffold(
+        floatingActionButton: AppFab(onPressed: openCreate, tooltip: 'New Sales Invoice (Ctrl+N)', label: 'New Sales Invoice'),
         body: invoicesAsync.when(
           data: (invoices) {
             final customers = customersAsync.valueOrNull ?? [];
+            final brands = brandsAsync.valueOrNull ?? [];
             final nameOf = {for (final c in customers) c.id: c.name};
             final phoneOf = {for (final c in customers) c.id: c.contactNumber};
             final userNameOf = <String, String>{for (final u in usersAsync.valueOrNull ?? const []) u.id: u.fullName};
 
-            var filtered = invoices;
-            if (_statusFilter != null) filtered = filtered.where((i) => i.status == _statusFilter).toList();
-            final query = _search.text.trim().toLowerCase();
-            if (query.isNotEmpty) {
-              filtered = filtered
-                  .where((i) => i.invoiceNumber.toLowerCase().contains(query) || (nameOf[i.customerId] ?? '').toLowerCase().contains(query))
-                  .toList();
-            }
-
-            final selected = filtered.where((i) => i.id == _selectedId).firstOrNull;
+            final selected = invoices.where((i) => i.id == _selectedId).firstOrNull;
 
             return Padding(
               padding: const EdgeInsets.all(24),
@@ -84,17 +123,31 @@ class _SalesInvoicesScreenState extends ConsumerState<SalesInvoicesScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   PageHeader(
-                    title: 'Sales Invoices',
+                    title: 'Sales List',
                     subtitle: 'Finalized sales — the record of what customers have been billed',
                     actions: [
                       SizedBox(
-                        width: 240,
+                        width: 200,
                         height: 40,
                         child: TextField(
                           controller: _search,
                           onChanged: (_) => setState(() {}),
                           decoration: const InputDecoration(isDense: true, prefixIcon: Icon(Icons.search, size: 18), hintText: 'Search invoices...'),
                         ),
+                      ),
+                      FilterButton<String>(
+                        value: _customerFilter,
+                        allLabel: 'All Customers',
+                        options: customers.map((c) => c.id).toList(),
+                        labelOf: (id) => nameOf[id] ?? id,
+                        onChanged: (v) => setState(() => _customerFilter = v),
+                      ),
+                      FilterButton<String>(
+                        value: _brandFilter,
+                        allLabel: 'All Brands',
+                        options: brands.map((b) => b.id).toList(),
+                        labelOf: (id) => brands.where((b) => b.id == id).firstOrNull?.name ?? id,
+                        onChanged: (v) => setState(() => _brandFilter = v),
                       ),
                       FilterButton<SalesInvoiceStatus>(
                         value: _statusFilter,
@@ -103,20 +156,33 @@ class _SalesInvoicesScreenState extends ConsumerState<SalesInvoicesScreen> {
                         labelOf: (s) => s.name,
                         onChanged: (v) => setState(() => _statusFilter = v),
                       ),
-                      OutlinedButton.icon(
-                        onPressed: () => ref.invalidate(salesInvoicesProvider),
-                        icon: const Icon(Icons.refresh, size: 16),
-                        label: const Text('Refresh'),
+                      FilterButton<DocumentPaymentStatus>(
+                        value: _paymentFilter,
+                        allLabel: 'All Payments',
+                        options: DocumentPaymentStatus.values,
+                        labelOf: (s) => s.label,
+                        onChanged: (v) => setState(() => _paymentFilter = v),
                       ),
+                      OutlinedButton.icon(
+                        onPressed: _pickDateRange,
+                        icon: const Icon(Icons.date_range, size: 16),
+                        label: Text(_from == null ? 'Date Range' : '${_from!.day}/${_from!.month} - ${_to!.day}/${_to!.month}'),
+                      ),
+                      FilterChip(
+                        label: const Text('Overdue only'),
+                        selected: _overdueOnly,
+                        onSelected: (v) => setState(() => _overdueOnly = v),
+                      ),
+                      OutlinedButton.icon(onPressed: refresh, icon: const Icon(Icons.refresh, size: 16), label: const Text('Refresh')),
                     ],
                   ),
                   const SizedBox(height: 16),
                   Expanded(
-                    child: filtered.isEmpty
+                    child: invoices.isEmpty
                         ? const Center(child: Text('No sales invoices found.'))
                         : selected == null
                             ? _InvoiceListCard(
-                                invoices: filtered,
+                                invoices: invoices,
                                 nameOf: nameOf,
                                 userNameOf: userNameOf,
                                 selectedId: null,
@@ -128,7 +194,7 @@ class _SalesInvoicesScreenState extends ConsumerState<SalesInvoicesScreen> {
                                   Expanded(
                                     flex: 4,
                                     child: _InvoiceListCard(
-                                      invoices: filtered,
+                                      invoices: invoices,
                                       nameOf: nameOf,
                                       userNameOf: userNameOf,
                                       selectedId: selected.id,
@@ -231,6 +297,7 @@ class _InvoiceDetailPanelState extends ConsumerState<_InvoiceDetailPanel> {
     switch (result) {
       case ApiSuccess():
         ref.invalidate(salesInvoicesProvider);
+        ref.invalidate(salesInvoicesFilteredProvider);
       case ApiFailure(message: final msg):
         AppToast.error(msg);
       case ApiNetworkError(message: final msg):

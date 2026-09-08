@@ -8,6 +8,8 @@ import 'core/shortcuts/global_shortcuts_listener.dart';
 import 'core/theme/app_theme.dart';
 import 'features/admin/super_admin_dashboard_screen.dart';
 import 'features/auth/login_screen.dart';
+import 'features/categories/categories_provider.dart';
+import 'features/categories/category_workspace_screen.dart';
 import 'features/connection/connection_controller.dart';
 import 'features/connection/connection_state.dart';
 import 'features/connection/connection_screen.dart';
@@ -28,7 +30,6 @@ import 'features/settings/shop_configuration_screen.dart';
 import 'features/shops/shop_gate.dart';
 import 'features/staff/staff_screen.dart';
 import 'features/shops/shops_provider.dart';
-import 'features/sales/sales_invoices_screen.dart';
 import 'features/stock/stock_screen.dart';
 import 'features/users/users_screen.dart';
 import 'features/whatsapp/whatsapp_screen.dart';
@@ -75,6 +76,23 @@ class ErpApp extends ConsumerWidget {
       // previous session skips straight past this branch (still fine to lazily re-validate later).
       home = const ShopGate();
     } else {
+      // One sidebar entry per active Item Category (always includes the auto-seeded "Cash Bill"
+      // category plus whatever the Shop Admin has created) — replaces the old flat "Purchases"/
+      // "Sales Invoices" entries. While categories are still loading/unavailable, this simply
+      // contributes no extra nav items yet rather than a placeholder — mirrors how the rest of
+      // this list is built eagerly with no other provider-dependent item today.
+      final categoriesAsync = ref.watch(categoriesProvider);
+      // No single required permission — like Reports below, each tab (Purchase List, Sales List)
+      // enforces its own permission on the backend, and a role with only one of
+      // purchase_orders.manage/sales_invoices.manage should still see this category entry.
+      final categoryNavItems = (categoriesAsync.valueOrNull ?? const [])
+          .map((category) => NavItem(
+                label: category.name,
+                icon: Icons.category_outlined,
+                builder: (_) => CategoryWorkspaceScreen(category: category),
+              ))
+          .toList();
+
       home = AppShell(items: [
         NavItem(label: 'Dashboard', icon: Icons.dashboard_outlined, builder: (_) => const DashboardScreen()),
         NavItem(
@@ -83,12 +101,7 @@ class ErpApp extends ConsumerWidget {
           requiredPermission: Permissions.customersView,
           builder: (_) => const CustomersScreen(),
         ),
-        NavItem(
-          label: 'Sales Invoices',
-          icon: Icons.receipt_long_outlined,
-          requiredPermission: Permissions.salesInvoicesManage,
-          builder: (_) => const SalesInvoicesScreen(),
-        ),
+        ...categoryNavItems,
         NavItem(
           label: 'Returns',
           icon: Icons.assignment_return_outlined,
@@ -96,7 +109,7 @@ class ErpApp extends ConsumerWidget {
           builder: (_) => const SalesReturnsScreen(),
         ),
         NavItem(
-          label: 'Purchases',
+          label: 'Suppliers',
           icon: Icons.local_shipping_outlined,
           requiredPermission: Permissions.purchaseOrdersManage,
           builder: (_) => const PurchasesScreen(),

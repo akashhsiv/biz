@@ -53,6 +53,7 @@ class PurchaseOrder {
   final String id;
   final String poNumber;
   final String supplierId;
+  final String categoryId;
   final PurchaseOrderStatus status;
   final PurchasePaymentStatus paymentStatus;
   final DateTime? dueDate;
@@ -68,6 +69,7 @@ class PurchaseOrder {
     required this.id,
     required this.poNumber,
     required this.supplierId,
+    required this.categoryId,
     required this.status,
     required this.paymentStatus,
     this.dueDate,
@@ -84,6 +86,7 @@ class PurchaseOrder {
         id: json['id'] as String,
         poNumber: json['poNumber'] as String,
         supplierId: json['supplierId'] as String,
+        categoryId: json['categoryId'] as String? ?? '',
         status: PurchaseOrderStatus.values[json['status'] as int],
         paymentStatus: PurchasePaymentStatus.values[json['paymentStatus'] as int],
         dueDate: json['dueDate'] == null ? null : DateTime.parse(json['dueDate'] as String),

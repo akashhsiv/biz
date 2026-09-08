@@ -21,6 +21,7 @@ class Permissions {
   static const expensesManage = 'expenses.manage';
 
   static const purchaseOrdersManage = 'purchase_orders.manage';
+  static const purchaseOrdersCancel = 'purchase_orders.cancel';
   static const purchaseReceiptsManage = 'purchase_receipts.manage';
   static const purchasePaymentsInitiate = 'purchase_payments.initiate';
   static const purchasePaymentsApprove = 'purchase_payments.approve';
