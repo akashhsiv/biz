@@ -19,9 +19,7 @@ import 'features/expenses/expenses_screen.dart';
 import 'features/finance/deposits_screen.dart';
 import 'features/finance/finance_screen.dart';
 import 'features/items/items_screen.dart';
-import 'features/proforma/proformas_screen.dart';
 import 'features/purchases/purchases_screen.dart';
-import 'features/quotations/quotations_screen.dart';
 import 'features/reports/reports_screen.dart';
 import 'features/returns/sales_returns_screen.dart';
 import 'features/settings/company_settings_screen.dart';
@@ -84,18 +82,6 @@ class ErpApp extends ConsumerWidget {
           icon: Icons.people_outline,
           requiredPermission: Permissions.customersView,
           builder: (_) => const CustomersScreen(),
-        ),
-        NavItem(
-          label: 'Quotations',
-          icon: Icons.request_quote_outlined,
-          requiredPermission: Permissions.quotationsManage,
-          builder: (_) => const QuotationsScreen(),
-        ),
-        NavItem(
-          label: 'Proformas',
-          icon: Icons.description_outlined,
-          requiredPermission: Permissions.proformasManage,
-          builder: (_) => const ProformasScreen(),
         ),
         NavItem(
           label: 'Sales Invoices',

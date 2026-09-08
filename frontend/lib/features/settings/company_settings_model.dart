@@ -13,16 +13,10 @@ class CompanySettings {
   final bool hasSignature;
   final bool showLogoOnDocuments;
   final bool showSignatureBlock;
-  final String? quotationTermsAndConditions;
-  final String? quotationFooterNote;
-  final String? proformaTermsAndConditions;
-  final String? proformaFooterNote;
   final String? salesInvoiceTermsAndConditions;
   final String? salesInvoiceFooterNote;
   final String? purchaseOrderTermsAndConditions;
   final String? purchaseOrderFooterNote;
-  final String? whatsappQuotationMessageTemplate;
-  final String? whatsappProformaMessageTemplate;
   final String? whatsappSalesInvoiceMessageTemplate;
   final String? whatsappDepositReceiptMessageTemplate;
 
@@ -41,16 +35,10 @@ class CompanySettings {
     required this.hasSignature,
     required this.showLogoOnDocuments,
     required this.showSignatureBlock,
-    this.quotationTermsAndConditions,
-    this.quotationFooterNote,
-    this.proformaTermsAndConditions,
-    this.proformaFooterNote,
     this.salesInvoiceTermsAndConditions,
     this.salesInvoiceFooterNote,
     this.purchaseOrderTermsAndConditions,
     this.purchaseOrderFooterNote,
-    this.whatsappQuotationMessageTemplate,
-    this.whatsappProformaMessageTemplate,
     this.whatsappSalesInvoiceMessageTemplate,
     this.whatsappDepositReceiptMessageTemplate,
   });
@@ -70,16 +58,10 @@ class CompanySettings {
         hasSignature: json['hasSignature'] as bool,
         showLogoOnDocuments: json['showLogoOnDocuments'] as bool,
         showSignatureBlock: json['showSignatureBlock'] as bool,
-        quotationTermsAndConditions: json['quotationTermsAndConditions'] as String?,
-        quotationFooterNote: json['quotationFooterNote'] as String?,
-        proformaTermsAndConditions: json['proformaTermsAndConditions'] as String?,
-        proformaFooterNote: json['proformaFooterNote'] as String?,
         salesInvoiceTermsAndConditions: json['salesInvoiceTermsAndConditions'] as String?,
         salesInvoiceFooterNote: json['salesInvoiceFooterNote'] as String?,
         purchaseOrderTermsAndConditions: json['purchaseOrderTermsAndConditions'] as String?,
         purchaseOrderFooterNote: json['purchaseOrderFooterNote'] as String?,
-        whatsappQuotationMessageTemplate: json['whatsappQuotationMessageTemplate'] as String?,
-        whatsappProformaMessageTemplate: json['whatsappProformaMessageTemplate'] as String?,
         whatsappSalesInvoiceMessageTemplate: json['whatsappSalesInvoiceMessageTemplate'] as String?,
         whatsappDepositReceiptMessageTemplate: json['whatsappDepositReceiptMessageTemplate'] as String?,
       );

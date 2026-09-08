@@ -6,15 +6,11 @@ import '../../core/providers.dart';
 import '../../core/theme/app_theme.dart';
 import '../../shared/widgets/app_fab.dart';
 import '../../shared/widgets/app_list_card.dart';
-import '../../shared/widgets/app_toast.dart';
 import '../../shared/widgets/list_screen_shortcuts.dart';
 import '../../shared/widgets/page_header.dart';
 import '../../shared/widgets/searchable_dropdown.dart';
 import '../../shared/widgets/skeleton_loader.dart';
 import '../customers/customers_provider.dart';
-import '../proforma/proforma_model.dart';
-import '../proforma/proformas_provider.dart';
-import 'deposit_model.dart';
 import 'deposits_provider.dart';
 
 const _pageSize = 20;
@@ -29,42 +25,6 @@ class DepositsScreen extends ConsumerStatefulWidget {
 class _DepositsScreenState extends ConsumerState<DepositsScreen> {
   String? _selectedCustomerId;
   int _page = 0;
-
-  /// After a deposit is recorded, checks whether the customer's available balance now covers any
-  /// of their still-Open proformas' outstanding amount and, if so, offers to convert them straight
-  /// to a Sales Invoice — the same deposit>=total rule QuotationsController.Convert already applies,
-  /// just triggered from the payment side instead of only being discoverable from the Proformas screen.
-  Future<void> _checkProformaConversion(String customerId) async {
-    final api = ref.read(apiClientProvider);
-
-    final summaryResult = await api.get<DepositSummary?>(
-      '/api/customers/$customerId/deposit-summary',
-      (json) => DepositSummary.fromJson(json as Map<String, dynamic>),
-    );
-    final proformasResult = await api.get<List<Proforma>>(
-      '/api/proformas',
-      (json) => (json as List).map((e) => Proforma.fromJson(e as Map<String, dynamic>)).toList(),
-      query: {'customerId': customerId},
-    );
-
-    if (!mounted) return;
-
-    final available = switch (summaryResult) {
-      ApiSuccess(data: final data) => data?.available ?? 0,
-      _ => 0.0,
-    };
-    final proformas = switch (proformasResult) {
-      ApiSuccess(data: final data) => data,
-      _ => const <Proforma>[],
-    };
-
-    final eligible = proformas
-        .where((p) => p.status == ProformaStatus.open && p.outstandingTotal > 0 && available >= p.outstandingTotal)
-        .toList();
-    if (eligible.isEmpty) return;
-
-    showDialog(context: context, builder: (_) => _ProformaConversionPromptDialog(customerId: customerId, proformas: eligible));
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -81,7 +41,6 @@ class _DepositsScreenState extends ConsumerState<DepositsScreen> {
           context: context,
           builder: (_) => _RecordDepositDialog(
             preselectedCustomerId: _selectedCustomerId,
-            onSaved: _checkProformaConversion,
           ),
         );
 
@@ -98,7 +57,7 @@ class _DepositsScreenState extends ConsumerState<DepositsScreen> {
             children: [
               PageHeader(
                 title: 'Customer Deposits',
-                subtitle: 'Payments received, available to allocate against proformas and invoices',
+                subtitle: 'Payments received, available to allocate against invoices',
                 actions: [
                   customersAsync.when(
                     data: (customers) => SizedBox(
@@ -205,8 +164,7 @@ class _SummaryCard extends ConsumerWidget {
 
 class _RecordDepositDialog extends ConsumerStatefulWidget {
   final String? preselectedCustomerId;
-  final void Function(String customerId)? onSaved;
-  const _RecordDepositDialog({this.preselectedCustomerId, this.onSaved});
+  const _RecordDepositDialog({this.preselectedCustomerId});
 
   @override
   ConsumerState<_RecordDepositDialog> createState() => _RecordDepositDialogState();
@@ -258,9 +216,7 @@ class _RecordDepositDialogState extends ConsumerState<_RecordDepositDialog> {
       case ApiSuccess():
         ref.invalidate(depositsProvider);
         ref.invalidate(depositSummaryProvider(_customerId!));
-        final customerId = _customerId!;
         Navigator.of(context).pop();
-        widget.onSaved?.call(customerId);
       case ApiFailure(message: final msg):
         setState(() {
           _saving = false;
@@ -329,115 +285,3 @@ class _RecordDepositDialogState extends ConsumerState<_RecordDepositDialog> {
   }
 }
 
-/// Shown right after a deposit is recorded, when it turns out to fully cover one or more of the
-/// customer's still-Open proformas. Converting here is "allocate the now-available deposit, then
-/// clear dues" in one step — the same two calls the Proformas screen would otherwise require the
-/// admin to make manually (allocate-deposit, then convert) after noticing it themselves.
-class _ProformaConversionPromptDialog extends ConsumerStatefulWidget {
-  final String customerId;
-  final List<Proforma> proformas;
-  const _ProformaConversionPromptDialog({required this.customerId, required this.proformas});
-
-  @override
-  ConsumerState<_ProformaConversionPromptDialog> createState() => _ProformaConversionPromptDialogState();
-}
-
-class _ProformaConversionPromptDialogState extends ConsumerState<_ProformaConversionPromptDialog> {
-  final _converting = <String>{};
-  final _converted = <String>{};
-
-  Future<void> _convert(Proforma p) async {
-    setState(() => _converting.add(p.id));
-
-    final api = ref.read(apiClientProvider);
-    final allocateResult = await api.post<Map<String, dynamic>>(
-      '/api/proformas/${p.id}/allocate-deposit',
-      (json) => json as Map<String, dynamic>,
-      body: const {'amount': null},
-      idempotencyKey: api.newIdempotencyKey(),
-    );
-
-    if (allocateResult is! ApiSuccess) {
-      if (!mounted) return;
-      setState(() => _converting.remove(p.id));
-      AppToast.error(switch (allocateResult) {
-        ApiFailure(message: final msg) => msg,
-        ApiNetworkError(message: final msg) => 'Could not reach the Host: $msg',
-        _ => 'Could not allocate the deposit.',
-      });
-      return;
-    }
-
-    final convertResult = await api.post<Map<String, dynamic>>(
-      '/api/proformas/${p.id}/convert',
-      (json) => json as Map<String, dynamic>,
-      body: const {},
-      idempotencyKey: api.newIdempotencyKey(),
-    );
-
-    if (!mounted) return;
-    setState(() => _converting.remove(p.id));
-
-    switch (convertResult) {
-      case ApiSuccess():
-        setState(() => _converted.add(p.id));
-        ref.invalidate(depositSummaryProvider(widget.customerId));
-        ref.invalidate(proformasProvider);
-        ref.invalidate(proformasByCustomerProvider(widget.customerId));
-        AppToast.success('${p.proformaNumber} converted to a Sales Invoice.');
-      case ApiFailure(message: final msg):
-        AppToast.error(msg);
-      case ApiNetworkError(message: final msg):
-        AppToast.error('Could not reach the Host: $msg');
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('Outstanding proforma now covered'),
-      content: SizedBox(
-        width: 420,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('This customer\'s available deposit now covers the following proforma(s). Convert to a Sales Invoice?'),
-            const SizedBox(height: 12),
-            ...widget.proformas.map((p) {
-              final isConverting = _converting.contains(p.id);
-              final isConverted = _converted.contains(p.id);
-              return Padding(
-                padding: const EdgeInsets.symmetric(vertical: 6),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(p.proformaNumber, style: const TextStyle(fontWeight: FontWeight.w600)),
-                          Text('Outstanding: ₹${p.outstandingTotal.toStringAsFixed(2)} of ₹${p.grandTotal.toStringAsFixed(2)}',
-                              style: const TextStyle(fontSize: 12, color: AppPalette.textSecondary)),
-                        ],
-                      ),
-                    ),
-                    if (isConverted)
-                      const Icon(Icons.check_circle, color: AppPalette.success)
-                    else
-                      FilledButton(
-                        onPressed: isConverting ? null : () => _convert(p),
-                        child: isConverting
-                            ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                            : const Text('Convert'),
-                      ),
-                  ],
-                ),
-              );
-            }),
-          ],
-        ),
-      ),
-      actions: [TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Close'))],
-    );
-  }
-}

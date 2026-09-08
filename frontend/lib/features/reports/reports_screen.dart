@@ -430,8 +430,6 @@ class _SalesReportTabState extends ConsumerState<_SalesReportTab> {
             stats: [
               ('Total Sales', '₹${(r['totalSales'] as num).toStringAsFixed(2)}'),
               ('Invoices', '${r['invoiceCount']}'),
-              ('Quotations', '${r['quotationCount']}'),
-              ('Proformas', '${r['proformaCount']}'),
             ],
             sections: [
               ReportPdfSection(title: 'By Customer', columns: const ['Customer', 'Total', 'Invoices'], rows: byCustomerRows),
@@ -443,8 +441,6 @@ class _SalesReportTabState extends ConsumerState<_SalesReportTab> {
             _StatRow([
               _Stat(icon: Icons.point_of_sale_outlined, label: 'Total Sales', value: '₹${(r['totalSales'] as num).toStringAsFixed(2)}', color: AppPalette.success),
               _Stat(icon: Icons.receipt_long_outlined, label: 'Invoices', value: '${r['invoiceCount']}'),
-              _Stat(icon: Icons.request_quote_outlined, label: 'Quotations', value: '${r['quotationCount']}'),
-              _Stat(icon: Icons.description_outlined, label: 'Proformas', value: '${r['proformaCount']}'),
             ]),
             const SizedBox(height: 20),
             _SectionCard(title: 'Top Customers', child: _RankingBarChart(entries: byCustomerChart, color: AppPalette.primary)),

@@ -8,8 +8,6 @@ class Permissions {
   static const itemsView = 'items.view';
   static const itemsManage = 'items.manage';
 
-  static const quotationsManage = 'quotations.manage';
-  static const proformasManage = 'proformas.manage';
   static const salesInvoicesManage = 'sales_invoices.manage';
   static const salesInvoicesCancel = 'sales_invoices.cancel';
   static const salesReturnsRequest = 'sales_returns.request';

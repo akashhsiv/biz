@@ -94,8 +94,6 @@ String _sidebarSectionFor(String label) {
   const sections = {
     'Dashboard': 'OVERVIEW',
     'Customers': 'SALES',
-    'Quotations': 'SALES',
-    'Proformas': 'SALES',
     'Sales Invoices': 'SALES',
     'Returns': 'SALES',
     'Purchases': 'PURCHASE',

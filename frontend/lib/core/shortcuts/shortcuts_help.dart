@@ -23,7 +23,7 @@ const List<ShortcutGroup> appShortcutGroups = [
     ShortcutEntry('Ctrl+Shift+1 … Ctrl+Shift+5', 'Jump to the 11th–15th sidebar module'),
     ShortcutEntry('Esc', 'Close the open dialog (built into every dialog in the app)'),
   ]),
-  ShortcutGroup('Customers, Items, Quotations, Deposits, Returns, Suppliers, Purchase Orders, Users', [
+  ShortcutGroup('Customers, Items, Deposits, Returns, Suppliers, Purchase Orders, Users', [
     ShortcutEntry('Ctrl+N', "New — opens that screen's create dialog (if you have permission)"),
     ShortcutEntry('F5', 'Refresh the list'),
   ]),
@@ -35,7 +35,7 @@ const List<ShortcutGroup> appShortcutGroups = [
     ShortcutEntry('Ctrl+N', 'Record Amount Out'),
     ShortcutEntry('F5', 'Refresh'),
   ]),
-  ShortcutGroup('Proformas, Sales Invoices, Roles, Reports, WhatsApp', [
+  ShortcutGroup('Sales Invoices, Roles, Reports, WhatsApp', [
     ShortcutEntry('F5', 'Refresh — these have no direct "New" action'),
   ]),
   ShortcutGroup('Shop Settings', [

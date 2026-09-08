@@ -17,7 +17,7 @@ import 'company_settings_provider.dart';
 
 /// Payment/branding/document-template settings, split out of the identity-only Shop Details screen
 /// (confirmed decision 2026-08-28): Bank Details, UPI ID (for the QR shown on documents),
-/// Authorized Signature image, the four per-document-type Terms/Footer templates, WhatsApp message
+/// Authorized Signature image, the per-document-type Terms/Footer templates, WhatsApp message
 /// templates, and a read-only view of the backup system. See CompanySettingsScreen's doc comment
 /// for why _save resends the identity fields unchanged from whatever was last loaded.
 class ShopConfigurationScreen extends ConsumerStatefulWidget {
@@ -34,17 +34,11 @@ class _ShopConfigurationScreenState extends ConsumerState<ShopConfigurationScree
   final _bankBranch = TextEditingController();
   final _upiId = TextEditingController();
 
-  final _quotationTerms = TextEditingController();
-  final _quotationFooter = TextEditingController();
-  final _proformaTerms = TextEditingController();
-  final _proformaFooter = TextEditingController();
   final _salesInvoiceTerms = TextEditingController();
   final _salesInvoiceFooter = TextEditingController();
   final _purchaseOrderTerms = TextEditingController();
   final _purchaseOrderFooter = TextEditingController();
 
-  final _waQuotationTemplate = TextEditingController();
-  final _waProformaTemplate = TextEditingController();
   final _waSalesInvoiceTemplate = TextEditingController();
   final _waDepositReceiptTemplate = TextEditingController();
 
@@ -63,16 +57,10 @@ class _ShopConfigurationScreenState extends ConsumerState<ShopConfigurationScree
     _bankIfsc.text = s.bankIfscCode ?? '';
     _bankBranch.text = s.bankBranch ?? '';
     _upiId.text = s.upiId ?? '';
-    _quotationTerms.text = s.quotationTermsAndConditions ?? '';
-    _quotationFooter.text = s.quotationFooterNote ?? '';
-    _proformaTerms.text = s.proformaTermsAndConditions ?? '';
-    _proformaFooter.text = s.proformaFooterNote ?? '';
     _salesInvoiceTerms.text = s.salesInvoiceTermsAndConditions ?? '';
     _salesInvoiceFooter.text = s.salesInvoiceFooterNote ?? '';
     _purchaseOrderTerms.text = s.purchaseOrderTermsAndConditions ?? '';
     _purchaseOrderFooter.text = s.purchaseOrderFooterNote ?? '';
-    _waQuotationTemplate.text = s.whatsappQuotationMessageTemplate ?? '';
-    _waProformaTemplate.text = s.whatsappProformaMessageTemplate ?? '';
     _waSalesInvoiceTemplate.text = s.whatsappSalesInvoiceMessageTemplate ?? '';
     _waDepositReceiptTemplate.text = s.whatsappDepositReceiptMessageTemplate ?? '';
     _showSignatureBlock = s.showSignatureBlock;
@@ -103,16 +91,10 @@ class _ShopConfigurationScreenState extends ConsumerState<ShopConfigurationScree
         'upiId': _upiId.text.trim().isEmpty ? null : _upiId.text.trim(),
         'showLogoOnDocuments': o?.showLogoOnDocuments ?? true,
         'showSignatureBlock': _showSignatureBlock,
-        'quotationTermsAndConditions': _quotationTerms.text.trim().isEmpty ? null : _quotationTerms.text.trim(),
-        'quotationFooterNote': _quotationFooter.text.trim().isEmpty ? null : _quotationFooter.text.trim(),
-        'proformaTermsAndConditions': _proformaTerms.text.trim().isEmpty ? null : _proformaTerms.text.trim(),
-        'proformaFooterNote': _proformaFooter.text.trim().isEmpty ? null : _proformaFooter.text.trim(),
         'salesInvoiceTermsAndConditions': _salesInvoiceTerms.text.trim().isEmpty ? null : _salesInvoiceTerms.text.trim(),
         'salesInvoiceFooterNote': _salesInvoiceFooter.text.trim().isEmpty ? null : _salesInvoiceFooter.text.trim(),
         'purchaseOrderTermsAndConditions': _purchaseOrderTerms.text.trim().isEmpty ? null : _purchaseOrderTerms.text.trim(),
         'purchaseOrderFooterNote': _purchaseOrderFooter.text.trim().isEmpty ? null : _purchaseOrderFooter.text.trim(),
-        'whatsappQuotationMessageTemplate': _waQuotationTemplate.text.trim().isEmpty ? null : _waQuotationTemplate.text.trim(),
-        'whatsappProformaMessageTemplate': _waProformaTemplate.text.trim().isEmpty ? null : _waProformaTemplate.text.trim(),
         'whatsappSalesInvoiceMessageTemplate': _waSalesInvoiceTemplate.text.trim().isEmpty ? null : _waSalesInvoiceTemplate.text.trim(),
         'whatsappDepositReceiptMessageTemplate': _waDepositReceiptTemplate.text.trim().isEmpty ? null : _waDepositReceiptTemplate.text.trim(),
       },
@@ -198,7 +180,7 @@ class _ShopConfigurationScreenState extends ConsumerState<ShopConfigurationScree
                       decoration: const InputDecoration(labelText: 'UPI ID', hintText: 'shopname@upi'),
                     ),
                     Text(
-                      'When set, a QR code (pre-filled with each document\'s amount) is shown on Quotations, Proformas, and Sales Invoices.',
+                      'When set, a QR code (pre-filled with each document\'s amount) is shown on Sales Invoices.',
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                     const SizedBox(height: 24),
@@ -236,8 +218,6 @@ class _ShopConfigurationScreenState extends ConsumerState<ShopConfigurationScree
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                     const SizedBox(height: 8),
-                    _DocumentTemplateSection(title: 'Quotation', termsController: _quotationTerms, footerController: _quotationFooter),
-                    _DocumentTemplateSection(title: 'Proforma Invoice', termsController: _proformaTerms, footerController: _proformaFooter),
                     _DocumentTemplateSection(title: 'Sales Invoice', termsController: _salesInvoiceTerms, footerController: _salesInvoiceFooter),
                     _DocumentTemplateSection(title: 'Purchase Order', termsController: _purchaseOrderTerms, footerController: _purchaseOrderFooter),
                     const SizedBox(height: 24),
@@ -247,16 +227,6 @@ class _ShopConfigurationScreenState extends ConsumerState<ShopConfigurationScree
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                     const SizedBox(height: 8),
-                    _WhatsappTemplateField(
-                      label: 'Quotation',
-                      controller: _waQuotationTemplate,
-                      variables: '{customerName} {quotationNumber} {grandTotal} {shopName}',
-                    ),
-                    _WhatsappTemplateField(
-                      label: 'Proforma Invoice',
-                      controller: _waProformaTemplate,
-                      variables: '{customerName} {proformaNumber} {grandTotal} {outstandingTotal} {shopName}',
-                    ),
                     _WhatsappTemplateField(
                       label: 'Sales Invoice',
                       controller: _waSalesInvoiceTemplate,
