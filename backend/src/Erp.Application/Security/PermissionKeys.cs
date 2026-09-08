@@ -22,6 +22,7 @@ public static class PermissionKeys
     public const string ExpensesManage = "expenses.manage";
 
     public const string PurchaseOrdersManage = "purchase_orders.manage";
+    public const string PurchaseOrdersCancel = "purchase_orders.cancel";
     public const string PurchaseReceiptsManage = "purchase_receipts.manage";
     public const string PurchasePaymentsInitiate = "purchase_payments.initiate";
     public const string PurchasePaymentsApprove = "purchase_payments.approve";
@@ -75,6 +76,7 @@ public static class PermissionKeys
         (ExpensesManage, "finance", "Record and view business expenses"),
 
         (PurchaseOrdersManage, "purchases", "Create/edit purchase orders"),
+        (PurchaseOrdersCancel, "purchases", "Cancel a purchase order (Admin-only)"),
         (PurchaseReceiptsManage, "purchases", "Record purchase receipts"),
         (PurchasePaymentsInitiate, "purchases", "Initiate a purchase payment"),
         (PurchasePaymentsApprove, "purchases", "Approve/complete a purchase payment"),

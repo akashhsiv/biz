@@ -245,9 +245,10 @@ public class PurchaseOrdersController(
         return Ok(new PurchaseReceiptDto(receipt.Id, receipt.ReceiptNumber, order.Id, receipt.ReceivedAt, order.Status));
     }
 
-    /// <summary>Cancels the un-received remainder of a PO. Any payment still Processing must be resolved first (default rule — ARCHITECTURE.md §13 item 6).</summary>
+    /// <summary>Cancels the un-received remainder of a PO. Any payment still Processing must be resolved first (default rule — ARCHITECTURE.md §13 item 6).
+    /// Gated separately from PurchaseOrdersManage (mirrors SalesInvoicesCancel) — Purchase Team can create/submit POs but not cancel an existing one; only Shop Admin can.</summary>
     [HttpPost("{id:guid}/cancel")]
-    [RequirePermission(PermissionKeys.PurchaseOrdersManage)]
+    [RequirePermission(PermissionKeys.PurchaseOrdersCancel)]
     public async Task<IActionResult> Cancel(Guid id, CancelPurchaseOrderRequest request, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(request.Reason))
