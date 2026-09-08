@@ -41,13 +41,15 @@ public class ReportsController(ErpDbContext db) : ControllerBase
 {
     [HttpGet("sales")]
     [RequirePermission(PermissionKeys.ReportsSalesView)]
-    public async Task<ActionResult<SalesSummaryDto>> Sales([FromQuery] DateTime? from, [FromQuery] DateTime? to, [FromQuery] DocumentPaymentStatus? paymentStatus, CancellationToken ct)
+    public async Task<ActionResult<SalesSummaryDto>> Sales([FromQuery] DateTime? from, [FromQuery] DateTime? to, [FromQuery] DocumentPaymentStatus? paymentStatus, [FromQuery] Guid? categoryId, [FromQuery] Guid? brandId, CancellationToken ct)
     {
         var (start, end) = Range(from, to);
 
         var invoicesQuery = db.SalesInvoices.Include(i => i.Lines)
             .Where(i => i.Status == SalesInvoiceStatus.Active && i.CreatedAt >= start && i.CreatedAt < end);
         if (paymentStatus is { } ps) invoicesQuery = invoicesQuery.Where(i => i.PaymentStatus == ps);
+        if (categoryId is { } catId) invoicesQuery = invoicesQuery.Where(i => i.CategoryId == catId);
+        if (brandId is { } bId) invoicesQuery = invoicesQuery.Where(i => i.Lines.Any(l => l.ItemId != null && l.Item!.BrandId == bId));
 
         var invoices = await invoicesQuery.ToListAsync(ct);
 
@@ -68,12 +70,14 @@ public class ReportsController(ErpDbContext db) : ControllerBase
 
     [HttpGet("purchase")]
     [RequirePermission(PermissionKeys.ReportsPurchaseView)]
-    public async Task<ActionResult<PurchaseSummaryDto>> Purchase([FromQuery] DateTime? from, [FromQuery] DateTime? to, [FromQuery] DocumentPaymentStatus? paymentStatus, CancellationToken ct)
+    public async Task<ActionResult<PurchaseSummaryDto>> Purchase([FromQuery] DateTime? from, [FromQuery] DateTime? to, [FromQuery] DocumentPaymentStatus? paymentStatus, [FromQuery] Guid? categoryId, [FromQuery] Guid? brandId, CancellationToken ct)
     {
         var (start, end) = Range(from, to);
 
-        var ordersQuery = db.PurchaseOrders.Where(o => o.CreatedAt >= start && o.CreatedAt < end);
+        var ordersQuery = db.PurchaseOrders.Include(o => o.Lines).Where(o => o.CreatedAt >= start && o.CreatedAt < end);
         if (paymentStatus is { } ps) ordersQuery = ordersQuery.Where(o => o.BalancePaymentStatus == ps);
+        if (categoryId is { } catId) ordersQuery = ordersQuery.Where(o => o.CategoryId == catId);
+        if (brandId is { } bId) ordersQuery = ordersQuery.Where(o => o.Lines.Any(l => l.Item.BrandId == bId));
 
         var orders = await ordersQuery.ToListAsync(ct);
         var supplierNames = await db.Suppliers.ToDictionaryAsync(s => s.Id, s => s.Name, ct);

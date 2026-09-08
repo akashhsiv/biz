@@ -36,11 +36,14 @@ public class CommissionController(ErpDbContext db) : ControllerBase
     [HttpGet("customer-rates")]
     [RequirePermission(PermissionKeys.CommissionView)]
     public async Task<ActionResult<List<CustomerProductRateDto>>> ListRates(
-        [FromQuery] Guid? customerId, [FromQuery] bool includeInactive, CancellationToken ct)
+        [FromQuery] Guid? customerId, [FromQuery] Guid? itemId, [FromQuery] bool? isActive,
+        [FromQuery] bool includeInactive, CancellationToken ct)
     {
         var query = db.CustomerProductRates.Include(r => r.Customer).Include(r => r.Item).AsQueryable();
         if (customerId is { } cid) query = query.Where(r => r.CustomerId == cid);
-        if (!includeInactive) query = query.Where(r => r.IsActive);
+        if (itemId is { } iid) query = query.Where(r => r.ItemId == iid);
+        if (isActive is { } active) query = query.Where(r => r.IsActive == active);
+        else if (!includeInactive) query = query.Where(r => r.IsActive);
 
         var rates = await query.OrderByDescending(r => r.EffectiveFrom).ToListAsync(ct);
         return Ok(rates.Select(ToDto));
@@ -127,11 +130,12 @@ public class CommissionController(ErpDbContext db) : ControllerBase
     [HttpGet("entries")]
     [RequirePermission(PermissionKeys.CommissionView)]
     public async Task<ActionResult<List<CommissionEntryDto>>> ListEntries(
-        [FromQuery] Guid? customerId, [FromQuery] CommissionEntryStatus? status,
+        [FromQuery] Guid? customerId, [FromQuery] Guid? itemId, [FromQuery] CommissionEntryStatus? status,
         [FromQuery] DateTime? fromDate, [FromQuery] DateTime? toDate, CancellationToken ct)
     {
         var query = db.CommissionEntries.Include(e => e.Customer).Include(e => e.SalesInvoice).Include(e => e.Item).AsQueryable();
         if (customerId is { } cid) query = query.Where(e => e.CustomerId == cid);
+        if (itemId is { } iid) query = query.Where(e => e.ItemId == iid);
         if (status is { } s) query = query.Where(e => e.Status == s);
         if (fromDate is { } from) query = query.Where(e => e.CreatedAt >= from);
         if (toDate is { } to) query = query.Where(e => e.CreatedAt <= to);

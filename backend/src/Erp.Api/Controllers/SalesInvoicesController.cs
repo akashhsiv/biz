@@ -216,10 +216,22 @@ public class SalesInvoicesController(
 
     [HttpGet]
     [RequirePermission(PermissionKeys.SalesInvoicesManage)]
-    public async Task<ActionResult<List<SalesInvoiceDto>>> List([FromQuery] Guid? customerId, CancellationToken ct)
+    public async Task<ActionResult<List<SalesInvoiceDto>>> List(
+        [FromQuery] Guid? customerId, [FromQuery] Guid? categoryId, [FromQuery] Guid? brandId,
+        [FromQuery] SalesInvoiceStatus? status, [FromQuery] DocumentPaymentStatus? paymentStatus,
+        [FromQuery] DateTime? from, [FromQuery] DateTime? to, [FromQuery] string? search, [FromQuery] bool overdueOnly = false,
+        CancellationToken ct = default)
     {
         var query = db.SalesInvoices.Include(i => i.Lines).AsQueryable();
         if (customerId is { } id) query = query.Where(i => i.CustomerId == id);
+        if (categoryId is { } catId) query = query.Where(i => i.CategoryId == catId);
+        if (brandId is { } bId) query = query.Where(i => i.Lines.Any(l => l.ItemId != null && l.Item!.BrandId == bId));
+        if (status is { } s) query = query.Where(i => i.Status == s);
+        if (paymentStatus is { } ps) query = query.Where(i => i.PaymentStatus == ps);
+        if (from is { } f) query = query.Where(i => i.CreatedAt >= f);
+        if (to is { } t) query = query.Where(i => i.CreatedAt <= t);
+        if (!string.IsNullOrWhiteSpace(search)) query = query.Where(i => EF.Functions.ILike(i.InvoiceNumber, $"%{search}%"));
+        if (overdueOnly) query = query.Where(i => i.DueDate != null && i.DueDate < DateTime.UtcNow && i.OutstandingTotal > 0);
 
         var invoices = await query.OrderByDescending(i => i.CreatedAt).ToListAsync(ct);
         return Ok(invoices.Select(ToDto));

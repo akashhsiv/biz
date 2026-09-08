@@ -50,10 +50,22 @@ public class PurchaseOrdersController(
 
     [HttpGet]
     [RequirePermission(PermissionKeys.PurchaseOrdersManage)]
-    public async Task<ActionResult<List<PurchaseOrderDto>>> List([FromQuery] Guid? supplierId, CancellationToken ct)
+    public async Task<ActionResult<List<PurchaseOrderDto>>> List(
+        [FromQuery] Guid? supplierId, [FromQuery] Guid? categoryId, [FromQuery] Guid? brandId,
+        [FromQuery] PurchaseOrderStatus? status, [FromQuery] DocumentPaymentStatus? balancePaymentStatus,
+        [FromQuery] DateTime? from, [FromQuery] DateTime? to, [FromQuery] string? search, [FromQuery] bool overdueOnly = false,
+        CancellationToken ct = default)
     {
         var query = db.PurchaseOrders.Include(p => p.Lines).Include(p => p.Payments).AsQueryable();
         if (supplierId is { } id) query = query.Where(p => p.SupplierId == id);
+        if (categoryId is { } catId) query = query.Where(p => p.CategoryId == catId);
+        if (brandId is { } bId) query = query.Where(p => p.Lines.Any(l => l.Item.BrandId == bId));
+        if (status is { } s) query = query.Where(p => p.Status == s);
+        if (balancePaymentStatus is { } bps) query = query.Where(p => p.BalancePaymentStatus == bps);
+        if (from is { } f) query = query.Where(p => p.CreatedAt >= f);
+        if (to is { } t) query = query.Where(p => p.CreatedAt <= t);
+        if (!string.IsNullOrWhiteSpace(search)) query = query.Where(p => EF.Functions.ILike(p.PoNumber, $"%{search}%"));
+        if (overdueOnly) query = query.Where(p => p.DueDate != null && p.DueDate < DateTime.UtcNow && p.OutstandingTotal > 0);
 
         var orders = await query.OrderByDescending(p => p.CreatedAt).ToListAsync(ct);
         return Ok(orders.Select(ToDto));
