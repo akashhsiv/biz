@@ -13,22 +13,16 @@ public record CompanySettingsDto(
     string? BankName, string? BankAccountNumber, string? BankIfscCode, string? BankBranch, string? UpiId,
     bool HasLogo, bool HasSignature,
     bool ShowLogoOnDocuments, bool ShowSignatureBlock,
-    string? QuotationTermsAndConditions, string? QuotationFooterNote,
-    string? ProformaTermsAndConditions, string? ProformaFooterNote,
     string? SalesInvoiceTermsAndConditions, string? SalesInvoiceFooterNote,
     string? PurchaseOrderTermsAndConditions, string? PurchaseOrderFooterNote,
-    string? WhatsappQuotationMessageTemplate, string? WhatsappProformaMessageTemplate,
     string? WhatsappSalesInvoiceMessageTemplate, string? WhatsappDepositReceiptMessageTemplate);
 
 public record UpdateCompanySettingsRequest(
     string ShopName, string Gstin, string State, string? Address, string? ContactNumber,
     string? BankName, string? BankAccountNumber, string? BankIfscCode, string? BankBranch, string? UpiId,
     bool ShowLogoOnDocuments, bool ShowSignatureBlock,
-    string? QuotationTermsAndConditions, string? QuotationFooterNote,
-    string? ProformaTermsAndConditions, string? ProformaFooterNote,
     string? SalesInvoiceTermsAndConditions, string? SalesInvoiceFooterNote,
     string? PurchaseOrderTermsAndConditions, string? PurchaseOrderFooterNote,
-    string? WhatsappQuotationMessageTemplate, string? WhatsappProformaMessageTemplate,
     string? WhatsappSalesInvoiceMessageTemplate, string? WhatsappDepositReceiptMessageTemplate);
 
 public record UpdateLogoRequest(string LogoBase64);
@@ -92,16 +86,10 @@ public class CompanySettingsController(ErpDbContext db) : ControllerBase
         settings.UpiId = request.UpiId;
         settings.ShowLogoOnDocuments = request.ShowLogoOnDocuments;
         settings.ShowSignatureBlock = request.ShowSignatureBlock;
-        settings.QuotationTermsAndConditions = request.QuotationTermsAndConditions;
-        settings.QuotationFooterNote = request.QuotationFooterNote;
-        settings.ProformaTermsAndConditions = request.ProformaTermsAndConditions;
-        settings.ProformaFooterNote = request.ProformaFooterNote;
         settings.SalesInvoiceTermsAndConditions = request.SalesInvoiceTermsAndConditions;
         settings.SalesInvoiceFooterNote = request.SalesInvoiceFooterNote;
         settings.PurchaseOrderTermsAndConditions = request.PurchaseOrderTermsAndConditions;
         settings.PurchaseOrderFooterNote = request.PurchaseOrderFooterNote;
-        settings.WhatsappQuotationMessageTemplate = request.WhatsappQuotationMessageTemplate;
-        settings.WhatsappProformaMessageTemplate = request.WhatsappProformaMessageTemplate;
         settings.WhatsappSalesInvoiceMessageTemplate = request.WhatsappSalesInvoiceMessageTemplate;
         settings.WhatsappDepositReceiptMessageTemplate = request.WhatsappDepositReceiptMessageTemplate;
 
@@ -155,10 +143,7 @@ public class CompanySettingsController(ErpDbContext db) : ControllerBase
         s.BankName, s.BankAccountNumber, s.BankIfscCode, s.BankBranch, s.UpiId,
         s.Logo is not null, s.Signature is not null,
         s.ShowLogoOnDocuments, s.ShowSignatureBlock,
-        s.QuotationTermsAndConditions, s.QuotationFooterNote,
-        s.ProformaTermsAndConditions, s.ProformaFooterNote,
         s.SalesInvoiceTermsAndConditions, s.SalesInvoiceFooterNote,
         s.PurchaseOrderTermsAndConditions, s.PurchaseOrderFooterNote,
-        s.WhatsappQuotationMessageTemplate, s.WhatsappProformaMessageTemplate,
         s.WhatsappSalesInvoiceMessageTemplate, s.WhatsappDepositReceiptMessageTemplate);
 }

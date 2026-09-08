@@ -168,9 +168,11 @@ public class WhatsappController(ErpDbContext db, ICurrentUserService currentUser
 
     private record BaileysStatusPayload(bool Connected, string? Qr);
 
-    /// <summary>Returns the message text and, for a document-backed type (Quotation/Proforma/
-    /// Sales Invoice), the rendered PDF to attach — the same PDF the "Export PDF" button on that
-    /// document produces, reused via IDocumentPdfService rather than re-implemented here.</summary>
+    /// <summary>Returns the message text and, for a document-backed type (Sales Invoice), the
+    /// rendered PDF to attach — the same PDF the "Export PDF" button on that document produces,
+    /// reused via IDocumentPdfService rather than re-implemented here. Quotation and ProformaInvoice
+    /// remain valid DocumentReferenceType values for historical StockMovement display, but sending a
+    /// WhatsApp message against them is no longer supported (falls through to the default case).</summary>
     private async Task<(string Message, PdfResult? Pdf)> BuildMessageAsync(SendWhatsappRequest request, CancellationToken ct)
     {
         if (request.MessageType == WhatsappMessageType.Custom)
@@ -184,35 +186,6 @@ public class WhatsappController(ErpDbContext db, ICurrentUserService currentUser
 
         switch (request.ReferenceType)
         {
-            case DocumentReferenceType.Quotation:
-                var quotation = await db.Quotations.Include(q => q.Customer).FirstOrDefaultAsync(q => q.Id == request.ReferenceId, ct)
-                    ?? throw new NotFoundAppException("Quotation", request.ReferenceId);
-                var quotationMessage = ApplyTemplate(settings?.WhatsappQuotationMessageTemplate,
-                    $"Your quotation {quotation.QuotationNumber} for ₹{quotation.GrandTotal:0.00} is ready.",
-                    new()
-                    {
-                        ["customerName"] = quotation.Customer.Name,
-                        ["quotationNumber"] = quotation.QuotationNumber,
-                        ["grandTotal"] = quotation.GrandTotal.ToString("0.00"),
-                        ["shopName"] = settings?.ShopName ?? "",
-                    });
-                return (quotationMessage, await pdfService.RenderQuotationAsync(request.ReferenceId, ct));
-
-            case DocumentReferenceType.ProformaInvoice:
-                var proforma = await db.ProformaInvoices.Include(p => p.Customer).FirstOrDefaultAsync(p => p.Id == request.ReferenceId, ct)
-                    ?? throw new NotFoundAppException("ProformaInvoice", request.ReferenceId);
-                var proformaMessage = ApplyTemplate(settings?.WhatsappProformaMessageTemplate,
-                    $"Your proforma invoice {proforma.ProformaNumber} for ₹{proforma.GrandTotal:0.00} (outstanding ₹{proforma.OutstandingTotal:0.00}) is ready.",
-                    new()
-                    {
-                        ["customerName"] = proforma.Customer.Name,
-                        ["proformaNumber"] = proforma.ProformaNumber,
-                        ["grandTotal"] = proforma.GrandTotal.ToString("0.00"),
-                        ["outstandingTotal"] = proforma.OutstandingTotal.ToString("0.00"),
-                        ["shopName"] = settings?.ShopName ?? "",
-                    });
-                return (proformaMessage, await pdfService.RenderProformaAsync(request.ReferenceId, ct));
-
             case DocumentReferenceType.SalesInvoice:
                 var invoice = await db.SalesInvoices.Include(i => i.Customer).FirstOrDefaultAsync(i => i.Id == request.ReferenceId, ct)
                     ?? throw new NotFoundAppException("SalesInvoice", request.ReferenceId);

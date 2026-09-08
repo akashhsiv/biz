@@ -53,10 +53,6 @@ public class ErpDbContext(DbContextOptions<ErpDbContext> options, ICurrentUserSe
     public DbSet<Expense> Expenses => Set<Expense>();
 
     // Sales chain
-    public DbSet<Quotation> Quotations => Set<Quotation>();
-    public DbSet<QuotationLine> QuotationLines => Set<QuotationLine>();
-    public DbSet<ProformaInvoice> ProformaInvoices => Set<ProformaInvoice>();
-    public DbSet<ProformaLine> ProformaLines => Set<ProformaLine>();
     public DbSet<SalesInvoice> SalesInvoices => Set<SalesInvoice>();
     public DbSet<SalesInvoiceLine> SalesInvoiceLines => Set<SalesInvoiceLine>();
     public DbSet<ReturnPolicy> ReturnPolicies => Set<ReturnPolicy>();
@@ -96,8 +92,8 @@ public class ErpDbContext(DbContextOptions<ErpDbContext> options, ICurrentUserSe
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        // DocumentLineBase is a shared C# shape, not a mapped hierarchy — each of
-        // QuotationLine/ProformaLine/SalesInvoiceLine gets its own physical table.
+        // DocumentLineBase is a shared C# shape, not a mapped hierarchy — each concrete line
+        // type (e.g. SalesInvoiceLine) gets its own physical table.
         modelBuilder.Ignore<Erp.Domain.Sales.DocumentLineBase>();
 
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(ErpDbContext).Assembly);

@@ -14,7 +14,7 @@ public static class DbSeeder
     [
         PermissionKeys.CustomersView, PermissionKeys.CustomersManage,
         PermissionKeys.ItemsView,
-        PermissionKeys.QuotationsManage, PermissionKeys.ProformasManage, PermissionKeys.SalesInvoicesManage,
+        PermissionKeys.SalesInvoicesManage,
         PermissionKeys.SalesReturnsRequest,
         PermissionKeys.CustomerDepositsRecord,
         PermissionKeys.StockView,

@@ -21,7 +21,7 @@ public class CompanySettings : IShopScoped
     public string? ContactNumber { get; set; }
     public byte[]? Logo { get; set; }
 
-    // Shown on generated PDFs (invoices, quotations, etc.) so customers know where to pay.
+    // Shown on generated PDFs (sales invoices, purchase orders, etc.) so customers know where to pay.
     public string? BankName { get; set; }
     public string? BankAccountNumber { get; set; }
     public string? BankIfscCode { get; set; }
@@ -31,9 +31,7 @@ public class CompanySettings : IShopScoped
 
     // Admin-editable per-message-type text (confirmed decision 2026-08-28): null/blank keeps the
     // hardcoded default wording in WhatsappController.BuildMessageAsync - these only override it.
-    // Supports {variable} placeholders (customerName, quotationNumber, grandTotal, etc.).
-    public string? WhatsappQuotationMessageTemplate { get; set; }
-    public string? WhatsappProformaMessageTemplate { get; set; }
+    // Supports {variable} placeholders (customerName, grandTotal, etc.).
     public string? WhatsappSalesInvoiceMessageTemplate { get; set; }
     public string? WhatsappDepositReceiptMessageTemplate { get; set; }
 
@@ -44,10 +42,6 @@ public class CompanySettings : IShopScoped
     public bool ShowLogoOnDocuments { get; set; } = true;
     public bool ShowSignatureBlock { get; set; }
 
-    public string? QuotationTermsAndConditions { get; set; }
-    public string? QuotationFooterNote { get; set; }
-    public string? ProformaTermsAndConditions { get; set; }
-    public string? ProformaFooterNote { get; set; }
     public string? SalesInvoiceTermsAndConditions { get; set; }
     public string? SalesInvoiceFooterNote { get; set; }
     public string? PurchaseOrderTermsAndConditions { get; set; }

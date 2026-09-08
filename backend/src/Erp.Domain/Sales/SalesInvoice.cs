@@ -46,8 +46,7 @@ public class SalesInvoice : BaseEntity, IShopScoped
     /// <summary>Required when Status is Cancelled (Admin-only, per confirmed business rule).</summary>
     public string? CancellationReason { get; set; }
 
-    /// <summary>Carried over unchanged from the source Quotation/Proforma at conversion time — see
-    /// Quotation.PlaceOfSupply.</summary>
+    /// <summary>Place of supply for GST purposes, set at invoice creation time.</summary>
     public string? PlaceOfSupply { get; set; }
 
     public ICollection<SalesInvoiceLine> Lines { get; set; } = new List<SalesInvoiceLine>();

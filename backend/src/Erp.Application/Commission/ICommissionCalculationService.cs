@@ -2,9 +2,9 @@ namespace Erp.Application.Commission;
 
 /// <summary>
 /// Isolated, swappable trigger for commission calculation. Deliberately kept simple and separate
-/// from the SalesInvoice creation flow (see QuotationsController.ConvertToSalesInvoiceAsync /
-/// ProformasController.Convert) — a business decision on the exact meaning of "commission" can
-/// change the calculation formula in this one place without touching invoice creation logic.
+/// from the SalesInvoice creation flow (see SalesInvoicesController.Create) — a business decision
+/// on the exact meaning of "commission" can change the calculation formula in this one place
+/// without touching invoice creation logic.
 /// See CommissionCalculationService for the current (provisional) formula.
 /// </summary>
 public interface ICommissionCalculationService

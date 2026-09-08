@@ -90,10 +90,6 @@ public class CompanySettingsConfiguration : IEntityTypeConfiguration<CompanySett
         b.Property(x => x.BankAccountNumber).HasMaxLength(30);
         b.Property(x => x.BankIfscCode).HasMaxLength(15);
         b.Property(x => x.BankBranch).HasMaxLength(200);
-        b.Property(x => x.QuotationTermsAndConditions).HasMaxLength(2000);
-        b.Property(x => x.QuotationFooterNote).HasMaxLength(500);
-        b.Property(x => x.ProformaTermsAndConditions).HasMaxLength(2000);
-        b.Property(x => x.ProformaFooterNote).HasMaxLength(500);
         b.Property(x => x.SalesInvoiceTermsAndConditions).HasMaxLength(2000);
         b.Property(x => x.SalesInvoiceFooterNote).HasMaxLength(500);
         b.Property(x => x.PurchaseOrderTermsAndConditions).HasMaxLength(2000);

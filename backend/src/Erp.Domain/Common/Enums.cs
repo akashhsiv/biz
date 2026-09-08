@@ -57,23 +57,6 @@ public enum DiscountType
     Flat
 }
 
-public enum QuotationStatus
-{
-    Draft,
-    Issued,
-    Converted,
-    Cancelled,
-    Expired
-}
-
-public enum ProformaStatus
-{
-    Open,
-    FullyFunded,
-    Converted,
-    Cancelled
-}
-
 public enum SalesInvoiceStatus
 {
     Active,
@@ -82,8 +65,17 @@ public enum SalesInvoiceStatus
 
 public enum SalesInvoiceSourceType
 {
+    /// <summary>Historical only — created by the removed quotation "convert to sales invoice" flow.
+    /// Existing rows keep this value; nothing creates it going forward. See Direct.</summary>
     QuotationDirect,
-    ProformaConversion
+
+    /// <summary>Historical only — created by the removed proforma "Clear Dues" convert flow.
+    /// Existing rows keep this value; nothing creates it going forward.</summary>
+    ProformaConversion,
+
+    /// <summary>Created directly via POST api/sales-invoices with no quote/proforma pipeline —
+    /// the only source type new invoices use since the quotation/proforma modules were removed.</summary>
+    Direct
 }
 
 public enum SalesReturnStatus

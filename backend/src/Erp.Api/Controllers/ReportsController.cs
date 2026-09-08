@@ -10,7 +10,7 @@ namespace Erp.Api.Controllers;
 
 public record SalesByCustomerRow(Guid CustomerId, string CustomerName, decimal GrandTotal, int InvoiceCount);
 public record SalesByItemRow(Guid ItemId, string ItemName, decimal Quantity, decimal LineTotal);
-public record SalesSummaryDto(decimal TotalSales, int InvoiceCount, int QuotationCount, int ProformaCount, List<SalesByCustomerRow> ByCustomer, List<SalesByItemRow> ByItem);
+public record SalesSummaryDto(decimal TotalSales, int InvoiceCount, List<SalesByCustomerRow> ByCustomer, List<SalesByItemRow> ByItem);
 
 public record PurchaseBySupplierRow(Guid SupplierId, string SupplierName, decimal GrandTotal, int OrderCount);
 public record PurchaseSummaryDto(decimal TotalPurchases, int OrderCount, Dictionary<string, int> StatusCounts, Dictionary<string, int> PaymentStatusCounts, List<PurchaseBySupplierRow> BySupplier);
@@ -18,7 +18,7 @@ public record PurchaseSummaryDto(decimal TotalPurchases, int OrderCount, Diction
 public record LowStockRow(Guid ItemId, string Sku, string Name, decimal QuantityOnHand);
 
 public record FinanceSummaryDto(decimal AmountIn, decimal AmountOut, decimal Refunds, decimal Adjustments, decimal NetChange, decimal EndingBalance);
-public record CustomerOutstandingRow(Guid CustomerId, string CustomerName, decimal OutstandingTotal, int OpenProformaCount);
+public record CustomerOutstandingRow(Guid CustomerId, string CustomerName, decimal OutstandingTotal, int OpenInvoiceCount);
 
 public record AuditSummaryRow(string Action, int Count);
 
@@ -51,9 +51,6 @@ public class ReportsController(ErpDbContext db) : ControllerBase
 
         var invoices = await invoicesQuery.ToListAsync(ct);
 
-        var quotationCount = await db.Quotations.CountAsync(q => q.CreatedAt >= start && q.CreatedAt < end, ct);
-        var proformaCount = await db.ProformaInvoices.CountAsync(p => p.CreatedAt >= start && p.CreatedAt < end, ct);
-
         var customerNames = await db.Customers.ToDictionaryAsync(c => c.Id, c => c.Name, ct);
         var itemNames = await db.Items.ToDictionaryAsync(i => i.Id, i => i.Name, ct);
 
@@ -66,7 +63,7 @@ public class ReportsController(ErpDbContext db) : ControllerBase
             .Select(g => new SalesByItemRow(g.Key, itemNames.GetValueOrDefault(g.Key, "?"), g.Sum(l => l.Quantity), g.Sum(l => l.LineTotal)))
             .OrderByDescending(r => r.LineTotal).ToList();
 
-        return Ok(new SalesSummaryDto(invoices.Sum(i => i.GrandTotal), invoices.Count, quotationCount, proformaCount, byCustomer, byItem));
+        return Ok(new SalesSummaryDto(invoices.Sum(i => i.GrandTotal), invoices.Count, byCustomer, byItem));
     }
 
     [HttpGet("purchase")]
@@ -144,14 +141,14 @@ public class ReportsController(ErpDbContext db) : ControllerBase
     [RequirePermission(PermissionKeys.ReportsFinanceView)]
     public async Task<ActionResult<List<CustomerOutstandingRow>>> Outstanding(CancellationToken ct)
     {
-        var openProformas = await db.ProformaInvoices
-            .Where(p => p.Status == ProformaStatus.Open && p.OutstandingTotal > 0)
+        var openInvoices = await db.SalesInvoices
+            .Where(i => i.Status == SalesInvoiceStatus.Active && i.OutstandingTotal > 0)
             .ToListAsync(ct);
 
         var customerNames = await db.Customers.ToDictionaryAsync(c => c.Id, c => c.Name, ct);
 
-        var rows = openProformas.GroupBy(p => p.CustomerId)
-            .Select(g => new CustomerOutstandingRow(g.Key, customerNames.GetValueOrDefault(g.Key, "?"), g.Sum(p => p.OutstandingTotal), g.Count()))
+        var rows = openInvoices.GroupBy(i => i.CustomerId)
+            .Select(g => new CustomerOutstandingRow(g.Key, customerNames.GetValueOrDefault(g.Key, "?"), g.Sum(i => i.OutstandingTotal), g.Count()))
             .OrderByDescending(r => r.OutstandingTotal).ToList();
 
         return Ok(rows);
@@ -185,12 +182,13 @@ public class ReportsController(ErpDbContext db) : ControllerBase
                 && customerIds.Contains(i.CustomerId))
             .ToListAsync(ct);
 
-        // Outstanding: open proformas per customer (same shape as finance/outstanding), not date-range filtered
-        // since outstanding is a point-in-time balance rather than an activity-in-range figure.
-        var outstandingByCustomer = await db.ProformaInvoices
-            .Where(p => p.Status == ProformaStatus.Open && p.OutstandingTotal > 0 && customerIds.Contains(p.CustomerId))
-            .GroupBy(p => p.CustomerId)
-            .Select(g => new { CustomerId = g.Key, Total = g.Sum(p => p.OutstandingTotal) })
+        // Outstanding: active sales invoices with a balance owed per customer (same shape as
+        // finance/outstanding), not date-range filtered since outstanding is a point-in-time balance
+        // rather than an activity-in-range figure.
+        var outstandingByCustomer = await db.SalesInvoices
+            .Where(i => i.Status == SalesInvoiceStatus.Active && i.OutstandingTotal > 0 && customerIds.Contains(i.CustomerId))
+            .GroupBy(i => i.CustomerId)
+            .Select(g => new { CustomerId = g.Key, Total = g.Sum(i => i.OutstandingTotal) })
             .ToDictionaryAsync(g => g.CustomerId, g => g.Total, ct);
 
         // Payments received: Amount In transactions against the customer within the date range.

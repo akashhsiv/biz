@@ -9,50 +9,6 @@ namespace Erp.Infrastructure.Documents;
 
 public class DocumentPdfService(ErpDbContext db, IPdfRenderer renderer) : IDocumentPdfService
 {
-    public async Task<PdfResult> RenderQuotationAsync(Guid id, CancellationToken ct = default)
-    {
-        var quotation = await db.Quotations.Include(q => q.Lines).ThenInclude(l => l.Item).Include(q => q.Customer).FirstOrDefaultAsync(q => q.Id == id, ct)
-            ?? throw new NotFoundAppException(nameof(Quotation), id);
-
-        var settings = await GetSettingsAsync(ct);
-        var html = HtmlTemplates.Document(
-            "QUOTATION", quotation.QuotationNumber, quotation.CreatedAt, ToShopParty(settings), "Customer",
-            ToCustomerParty(quotation.Customer),
-            quotation.Lines.Select(ToLine), quotation.Subtotal, quotation.OverallDiscountAmount, quotation.TaxTotal, quotation.GrandTotal,
-            [new TemplateExtraRow("Status", quotation.Status.ToString())],
-            ToBankDetails(settings), ToLogoBase64(settings),
-            // A per-quotation Notes value (payment terms, delivery notes, special instructions) is
-            // shown in its own "Notes" box, separate from the shop-wide default Terms & Conditions -
-            // they used to be concatenated into one block, which read as a single undifferentiated
-            // wall of text with no indication which part was document-specific.
-            settings.QuotationTermsAndConditions, settings.QuotationFooterNote, settings.ShowSignatureBlock,
-            ToUpiQrBase64(settings, quotation.GrandTotal), ToSignatureBase64(settings), quotation.PlaceOfSupply, quotation.Notes);
-
-        return new PdfResult($"{quotation.QuotationNumber}.pdf", await renderer.RenderAsync(html, ct));
-    }
-
-    public async Task<PdfResult> RenderProformaAsync(Guid id, CancellationToken ct = default)
-    {
-        var proforma = await db.ProformaInvoices.Include(p => p.Lines).ThenInclude(l => l.Item).Include(p => p.Customer).FirstOrDefaultAsync(p => p.Id == id, ct)
-            ?? throw new NotFoundAppException(nameof(ProformaInvoice), id);
-
-        var settings = await GetSettingsAsync(ct);
-        var html = HtmlTemplates.Document(
-            "PROFORMA INVOICE", proforma.ProformaNumber, proforma.CreatedAt, ToShopParty(settings), "Customer",
-            ToCustomerParty(proforma.Customer),
-            proforma.Lines.Select(ToLine), proforma.Subtotal, proforma.OverallDiscountAmount, proforma.TaxTotal, proforma.GrandTotal,
-            [
-                new TemplateExtraRow("Deposit Allocated", proforma.AllocatedTotal.ToString("0.00")),
-                new TemplateExtraRow("Outstanding", proforma.OutstandingTotal.ToString("0.00")),
-                new TemplateExtraRow("Status", proforma.Status.ToString()),
-            ],
-            ToBankDetails(settings), ToLogoBase64(settings),
-            settings.ProformaTermsAndConditions, settings.ProformaFooterNote, settings.ShowSignatureBlock,
-            ToUpiQrBase64(settings, proforma.GrandTotal), ToSignatureBase64(settings), proforma.PlaceOfSupply);
-
-        return new PdfResult($"{proforma.ProformaNumber}.pdf", await renderer.RenderAsync(html, ct));
-    }
-
     public async Task<PdfResult> RenderSalesInvoiceAsync(Guid id, CancellationToken ct = default)
     {
         var invoice = await db.SalesInvoices.Include(i => i.Lines).ThenInclude(l => l.Item).Include(i => i.Customer).FirstOrDefaultAsync(i => i.Id == id, ct)

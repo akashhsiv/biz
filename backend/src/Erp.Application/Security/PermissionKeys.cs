@@ -9,8 +9,6 @@ public static class PermissionKeys
     public const string ItemsView = "items.view";
     public const string ItemsManage = "items.manage";
 
-    public const string QuotationsManage = "quotations.manage";
-    public const string ProformasManage = "proformas.manage";
     public const string SalesInvoicesManage = "sales_invoices.manage";
     public const string SalesInvoicesCancel = "sales_invoices.cancel";
     public const string SalesReturnsRequest = "sales_returns.request";
@@ -64,8 +62,6 @@ public static class PermissionKeys
         (ItemsView, "items", "View item master"),
         (ItemsManage, "items", "Create/edit/deactivate items"),
 
-        (QuotationsManage, "sales", "Create/edit/convert quotations"),
-        (ProformasManage, "sales", "View/convert/cancel proforma invoices"),
         (SalesInvoicesManage, "sales", "View sales invoices"),
         (SalesInvoicesCancel, "sales", "Cancel a sales invoice (Admin-only)"),
         (SalesReturnsRequest, "sales", "Request a sales return"),
