@@ -38,15 +38,30 @@ public class StockService(ErpDbContext db, ICurrentUserService currentUser, INot
 
     private async Task CheckLowStockAsync(Item item, CancellationToken ct)
     {
-        if (item.MinimumStock is not { } minimum) return;
-
         var current = await db.StockBalances.AsNoTracking().Where(b => b.ItemId == item.Id).Select(b => b.QuantityOnHand).FirstOrDefaultAsync(ct);
-        if (current > minimum) return;
 
+        // OutOfStock fires regardless of whether a MinimumStock threshold is configured — zero stock is
+        // always worth flagging. LowStock only applies when a threshold is set and not yet exhausted.
+        if (current <= 0)
+        {
+            var shopName = await db.Shops.AsNoTracking().Where(s => s.Id == item.ShopId).Select(s => s.Name).FirstOrDefaultAsync(ct);
+            await notificationEvents.CreateEventAsync(item.ShopId, NotificationEventType.OutOfStock, new
+            {
+                itemId = item.Id,
+                itemName = item.Name,
+                shopName,
+            }, ct: ct);
+            return;
+        }
+
+        if (item.MinimumStock is not { } minimum || current > minimum) return;
+
+        var lowStockShopName = await db.Shops.AsNoTracking().Where(s => s.Id == item.ShopId).Select(s => s.Name).FirstOrDefaultAsync(ct);
         await notificationEvents.CreateEventAsync(item.ShopId, NotificationEventType.LowStock, new
         {
             itemId = item.Id,
             itemName = item.Name,
+            shopName = lowStockShopName,
             currentStock = current,
             minimumStock = minimum,
         }, ct: ct);

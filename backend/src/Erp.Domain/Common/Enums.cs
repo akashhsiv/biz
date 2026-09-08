@@ -196,7 +196,11 @@ public enum NotificationEventType
     PurchaseOverdue,
     CustomerOutstanding,
     SalesPaymentDue,
-    SalesPaymentOverdue
+    SalesPaymentOverdue,
+
+    /// <summary>Raised instead of LowStock when a decrement brings QuantityOnHand to zero or below —
+    /// distinct urgency/wording from a low-but-nonzero balance.</summary>
+    OutOfStock
 }
 
 /// <summary>Unified Full/Partial/Credit payment-status concept shared by SalesInvoice.PaymentStatus and

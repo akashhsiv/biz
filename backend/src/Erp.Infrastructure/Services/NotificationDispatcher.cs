@@ -129,6 +129,7 @@ public class NotificationDispatcher(ErpDbContext db, IPushNotificationService pu
     private static string BuildTitle(NotificationEvent evt) => evt.EventType switch
     {
         NotificationEventType.LowStock => "Low stock alert",
+        NotificationEventType.OutOfStock => "Out of stock",
         NotificationEventType.PurchaseDue => "Purchase payment due soon",
         NotificationEventType.PurchaseOverdue => "Purchase payment overdue",
         NotificationEventType.CustomerOutstanding => "Customer outstanding balance",
@@ -140,6 +141,9 @@ public class NotificationDispatcher(ErpDbContext db, IPushNotificationService pu
     private static (bool Whatsapp, bool Mobile) ChannelsFor(NotificationEventType type, ShopNotificationSettings s) => type switch
     {
         NotificationEventType.LowStock => (s.LowStockWhatsapp, s.LowStockMobile),
+        // OutOfStock reuses the LowStock channel toggles — zero stock is just the most urgent case of
+        // the same underlying alert, not worth a separate settings pair for now.
+        NotificationEventType.OutOfStock => (s.LowStockWhatsapp, s.LowStockMobile),
         NotificationEventType.PurchaseDue => (s.PurchaseDueWhatsapp, s.PurchaseDueMobile),
         NotificationEventType.PurchaseOverdue => (s.PurchaseOverdueWhatsapp, s.PurchaseOverdueMobile),
         NotificationEventType.CustomerOutstanding => (s.CustomerOutstandingWhatsapp, s.CustomerOutstandingMobile),
@@ -151,6 +155,7 @@ public class NotificationDispatcher(ErpDbContext db, IPushNotificationService pu
     private static string BuildMessage(NotificationEvent evt) => evt.EventType switch
     {
         NotificationEventType.LowStock => $"Low stock alert: {evt.PayloadJson}",
+        NotificationEventType.OutOfStock => $"Out of stock: {evt.PayloadJson}",
         NotificationEventType.PurchaseOverdue => $"Purchase overdue: {evt.PayloadJson}",
         NotificationEventType.SalesPaymentDue => $"Payment due soon: {evt.PayloadJson}",
         NotificationEventType.SalesPaymentOverdue => $"Payment overdue: {evt.PayloadJson}",
