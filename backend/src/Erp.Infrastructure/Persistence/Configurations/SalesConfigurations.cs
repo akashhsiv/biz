@@ -43,6 +43,9 @@ public class SalesInvoiceConfiguration : IEntityTypeConfiguration<SalesInvoice>
         b.HasOne(x => x.Customer).WithMany()
             .HasForeignKey(x => x.CustomerId).OnDelete(DeleteBehavior.Restrict);
 
+        b.HasOne(x => x.Category).WithMany()
+            .HasForeignKey(x => x.CategoryId).OnDelete(DeleteBehavior.Restrict);
+
         b.HasMany(x => x.Lines).WithOne(x => x.SalesInvoice)
             .HasForeignKey(x => x.SalesInvoiceId).OnDelete(DeleteBehavior.Cascade);
     }

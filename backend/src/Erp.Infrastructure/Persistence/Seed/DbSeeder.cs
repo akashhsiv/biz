@@ -45,6 +45,7 @@ public static class DbSeeder
 
         var defaultShop = await SeedDefaultCompanyAndShopAsync(db, ct);
         await SeedCompanySettingsAsync(db, defaultShop, ct);
+        await DefaultCategorySeeder.EnsureCashBillCategoryAsync(db, defaultShop, ct);
         var admin = await SeedAdminUserAsync(db, shopAdmin, ct);
         await SeedAdminUserShopRoleAsync(db, admin, defaultShop, shopAdmin, ct);
         await SeedSuperAdminUserAsync(db, superAdminRole, ct);

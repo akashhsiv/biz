@@ -1,5 +1,6 @@
 using Erp.Domain.Common;
 using Erp.Domain.Customers;
+using Erp.Domain.Items;
 
 namespace Erp.Domain.Sales;
 
@@ -16,6 +17,11 @@ public class SalesInvoice : BaseEntity, IShopScoped
 
     public Guid CustomerId { get; set; }
     public Customer Customer { get; set; } = default!;
+
+    /// <summary>The category (Paint, Iron, Plumbing, etc.) this invoice is placed under, chosen at
+    /// creation. Every line's Item must belong to this same category — see SalesInvoicesController.Create.</summary>
+    public Guid CategoryId { get; set; }
+    public ItemCategory Category { get; set; } = default!;
 
     public SalesInvoiceStatus Status { get; set; } = SalesInvoiceStatus.Active;
 

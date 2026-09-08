@@ -4,6 +4,26 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace Erp.Infrastructure.Persistence.Configurations;
 
+public class VendorBrandConfiguration : IEntityTypeConfiguration<VendorBrand>
+{
+    public void Configure(EntityTypeBuilder<VendorBrand> b)
+    {
+        b.ToTable("vendor_brands");
+        b.HasKey(x => x.Id);
+
+        b.HasIndex(x => new { x.ShopId, x.SupplierId, x.BrandId }).IsUnique();
+
+        b.HasOne(x => x.Shop).WithMany()
+            .HasForeignKey(x => x.ShopId).OnDelete(DeleteBehavior.Restrict);
+
+        b.HasOne(x => x.Supplier).WithMany()
+            .HasForeignKey(x => x.SupplierId).OnDelete(DeleteBehavior.Restrict);
+
+        b.HasOne(x => x.Brand).WithMany()
+            .HasForeignKey(x => x.BrandId).OnDelete(DeleteBehavior.Restrict);
+    }
+}
+
 public class SupplierConfiguration : IEntityTypeConfiguration<Supplier>
 {
     public void Configure(EntityTypeBuilder<Supplier> b)
@@ -39,6 +59,9 @@ public class PurchaseOrderConfiguration : IEntityTypeConfiguration<PurchaseOrder
 
         b.HasOne(x => x.Supplier).WithMany()
             .HasForeignKey(x => x.SupplierId).OnDelete(DeleteBehavior.Restrict);
+
+        b.HasOne(x => x.Category).WithMany()
+            .HasForeignKey(x => x.CategoryId).OnDelete(DeleteBehavior.Restrict);
 
         b.HasMany(x => x.Lines).WithOne(x => x.PurchaseOrder)
             .HasForeignKey(x => x.PurchaseOrderId).OnDelete(DeleteBehavior.Cascade);

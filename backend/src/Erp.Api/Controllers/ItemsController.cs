@@ -10,12 +10,12 @@ using Microsoft.EntityFrameworkCore;
 namespace Erp.Api.Controllers;
 
 public record ItemDto(
-    Guid Id, string Sku, string Name, Guid? CategoryId, string Unit, ItemKind ItemKind,
+    Guid Id, string Sku, string Name, Guid? CategoryId, Guid? BrandId, string Unit, ItemKind ItemKind,
     decimal PurchasePrice, decimal SellingPrice, decimal TaxRatePercent, string? HsnCode, bool IsBatchTracked, bool IsSerialTracked, bool IsActive, decimal StockOnHand, decimal? MinimumStock, bool HasImage);
 
 public record UpsertItemRequest(
     string Sku, string Name, Guid? CategoryId, string Unit, ItemKind ItemKind,
-    decimal PurchasePrice, decimal SellingPrice, decimal TaxRatePercent, string? HsnCode, bool IsBatchTracked, bool IsSerialTracked, decimal? MinimumStock = null);
+    decimal PurchasePrice, decimal SellingPrice, decimal TaxRatePercent, string? HsnCode, bool IsBatchTracked, bool IsSerialTracked, decimal? MinimumStock = null, Guid? BrandId = null);
 
 public record UpdateItemImageRequest(string ImageBase64);
 
@@ -102,11 +102,14 @@ public class ItemsController(ErpDbContext db, IAuditService audit) : ControllerB
         if (request.IsBatchTracked && request.IsSerialTracked)
             throw new ValidationAppException("An item cannot be both batch-tracked and serial-tracked.");
 
+        var categoryId = await ResolveCategoryIdAsync(request.BrandId, request.CategoryId, ct);
+
         var item = new Item
         {
             Sku = request.Sku,
             Name = request.Name,
-            CategoryId = request.CategoryId,
+            CategoryId = categoryId,
+            BrandId = request.BrandId,
             Unit = request.Unit,
             ItemKind = request.ItemKind,
             PurchasePrice = request.PurchasePrice,
@@ -144,10 +147,13 @@ public class ItemsController(ErpDbContext db, IAuditService audit) : ControllerB
         if (request.IsBatchTracked && request.IsSerialTracked)
             throw new ValidationAppException("An item cannot be both batch-tracked and serial-tracked.");
 
+        var categoryId = await ResolveCategoryIdAsync(request.BrandId, request.CategoryId, ct);
+
         var oldValue = ToDto(item);
 
         item.Name = request.Name;
-        item.CategoryId = request.CategoryId;
+        item.CategoryId = categoryId;
+        item.BrandId = request.BrandId;
         item.Unit = request.Unit;
         item.PurchasePrice = request.PurchasePrice;
         item.SellingPrice = request.SellingPrice;
@@ -177,7 +183,24 @@ public class ItemsController(ErpDbContext db, IAuditService audit) : ControllerB
         return NoContent();
     }
 
+    /// <summary>When a Brand is given: looks it up (404 if missing), and if the request's CategoryId is
+    /// null, defaults it to the Brand's Category — a Brand always belongs to exactly one Category, so an
+    /// Item picking a Brand doesn't have to separately re-specify its category. If both are given and
+    /// disagree, that's a client error (ValidationAppException), not silently resolved one way.</summary>
+    private async Task<Guid?> ResolveCategoryIdAsync(Guid? brandId, Guid? requestCategoryId, CancellationToken ct)
+    {
+        if (brandId is null) return requestCategoryId;
+
+        var brand = await db.Brands.FirstOrDefaultAsync(b => b.Id == brandId.Value, ct)
+            ?? throw new NotFoundAppException(nameof(Brand), brandId.Value);
+
+        if (requestCategoryId is { } requested && requested != brand.CategoryId)
+            throw new ValidationAppException("The item's CategoryId does not match the selected Brand's category.");
+
+        return brand.CategoryId;
+    }
+
     private static ItemDto ToDto(Item i) => new(
-        i.Id, i.Sku, i.Name, i.CategoryId, i.Unit, i.ItemKind, i.PurchasePrice, i.SellingPrice,
+        i.Id, i.Sku, i.Name, i.CategoryId, i.BrandId, i.Unit, i.ItemKind, i.PurchasePrice, i.SellingPrice,
         i.TaxRatePercent, i.HsnCode, i.IsBatchTracked, i.IsSerialTracked, i.IsActive, i.StockBalance?.QuantityOnHand ?? 0, i.MinimumStock, i.Image is not null);
 }

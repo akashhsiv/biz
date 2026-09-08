@@ -52,8 +52,27 @@ public class ItemConfiguration : IEntityTypeConfiguration<Item>
         b.HasOne(x => x.Category).WithMany()
             .HasForeignKey(x => x.CategoryId).OnDelete(DeleteBehavior.Restrict);
 
+        b.HasOne(x => x.Brand).WithMany()
+            .HasForeignKey(x => x.BrandId).OnDelete(DeleteBehavior.Restrict);
+
         b.HasOne(x => x.StockBalance).WithOne(x => x.Item)
             .HasForeignKey<StockBalance>(x => x.ItemId).OnDelete(DeleteBehavior.Restrict);
+    }
+}
+
+public class BrandConfiguration : IEntityTypeConfiguration<Brand>
+{
+    public void Configure(EntityTypeBuilder<Brand> b)
+    {
+        b.ToTable("brands");
+        b.HasKey(x => x.Id);
+        b.Property(x => x.Name).HasMaxLength(200).IsRequired();
+
+        b.HasOne(x => x.Shop).WithMany()
+            .HasForeignKey(x => x.ShopId).OnDelete(DeleteBehavior.Restrict);
+
+        b.HasOne(x => x.Category).WithMany()
+            .HasForeignKey(x => x.CategoryId).OnDelete(DeleteBehavior.Restrict);
     }
 }
 

@@ -125,6 +125,8 @@ public class AdminController(ErpDbContext db) : ControllerBase
             Role = shopAdminRole,
         });
 
+        await Erp.Infrastructure.Persistence.Seed.DefaultCategorySeeder.EnsureCashBillCategoryAsync(db, shop, ct);
+
         await db.SaveChangesAsync(ct);
 
         var shopDto = new ShopAdminSummaryDto(shop.Id, shop.Name, shop.Gstin, shop.Address, shop.ContactNumber, shop.IsActive);

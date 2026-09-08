@@ -41,6 +41,7 @@ public class ErpDbContext(DbContextOptions<ErpDbContext> options, ICurrentUserSe
     public DbSet<ItemCategory> ItemCategories => Set<ItemCategory>();
     public DbSet<TaxGroup> TaxGroups => Set<TaxGroup>();
     public DbSet<Item> Items => Set<Item>();
+    public DbSet<Brand> Brands => Set<Brand>();
     public DbSet<ItemBatch> ItemBatches => Set<ItemBatch>();
     public DbSet<ItemSerial> ItemSerials => Set<ItemSerial>();
     public DbSet<StockBalance> StockBalances => Set<StockBalance>();
@@ -66,6 +67,7 @@ public class ErpDbContext(DbContextOptions<ErpDbContext> options, ICurrentUserSe
     public DbSet<PurchaseReceipt> PurchaseReceipts => Set<PurchaseReceipt>();
     public DbSet<PurchaseReceiptLine> PurchaseReceiptLines => Set<PurchaseReceiptLine>();
     public DbSet<PurchasePayment> PurchasePayments => Set<PurchasePayment>();
+    public DbSet<VendorBrand> VendorBrands => Set<VendorBrand>();
 
     // Staff & Salary
     public DbSet<Erp.Domain.Staff.Staff> Staff => Set<Erp.Domain.Staff.Staff>();

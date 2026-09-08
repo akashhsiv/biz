@@ -15,10 +15,10 @@ using Microsoft.EntityFrameworkCore;
 namespace Erp.Api.Controllers;
 
 public record PurchaseOrderLineRequest(Guid ItemId, decimal QuantityOrdered, decimal Rate);
-public record CreatePurchaseOrderRequest(Guid SupplierId, List<PurchaseOrderLineRequest> Lines);
+public record CreatePurchaseOrderRequest(Guid SupplierId, Guid CategoryId, List<PurchaseOrderLineRequest> Lines);
 
 public record PurchaseOrderLineDto(Guid Id, Guid ItemId, decimal QuantityOrdered, decimal QuantityReceived, decimal Rate, decimal TaxRatePercent, decimal Cgst, decimal Sgst, decimal Igst, decimal LineTotal);
-public record PurchaseOrderDto(Guid Id, string PoNumber, Guid SupplierId, PurchaseOrderStatus Status, PurchasePaymentStatus PaymentStatus, DateTime? DueDate, DocumentPaymentStatus BalancePaymentStatus, decimal OutstandingTotal, decimal Subtotal, decimal TaxTotal, decimal GrandTotal, List<PurchaseOrderLineDto> Lines, List<PurchasePaymentDto> Payments, DateTime CreatedAt, Guid CreatedBy);
+public record PurchaseOrderDto(Guid Id, string PoNumber, Guid SupplierId, Guid CategoryId, PurchaseOrderStatus Status, PurchasePaymentStatus PaymentStatus, DateTime? DueDate, DocumentPaymentStatus BalancePaymentStatus, decimal OutstandingTotal, decimal Subtotal, decimal TaxTotal, decimal GrandTotal, List<PurchaseOrderLineDto> Lines, List<PurchasePaymentDto> Payments, DateTime CreatedAt, Guid CreatedBy);
 
 public record PurchaseReceiptLineRequest(Guid PoLineId, decimal QuantityReceived, string? BatchNumber, DateTime? ExpiryDate, List<string>? SerialNumbers);
 public record CreatePurchaseReceiptRequest(List<PurchaseReceiptLineRequest> Lines);
@@ -75,14 +75,23 @@ public class PurchaseOrdersController(
     {
         if (request.Lines.Count == 0) throw new ValidationAppException("A purchase order must have at least one line.");
 
+        // Explicit clear errors rather than the generic 404 a cross-shop id would otherwise fall
+        // through to: db.Suppliers/db.Items are already shop-filtered by the global query filter, so a
+        // supplier/item id from another shop simply won't be found — NotFoundAppException below already
+        // communicates that clearly enough since the message names the entity and id.
         var supplier = await db.Suppliers.FirstOrDefaultAsync(s => s.Id == request.SupplierId && s.IsActive, ct)
             ?? throw new NotFoundAppException(nameof(Supplier), request.SupplierId);
+
+        var category = await db.ItemCategories.FirstOrDefaultAsync(c => c.Id == request.CategoryId && c.IsActive, ct)
+            ?? throw new NotFoundAppException(nameof(ItemCategory), request.CategoryId);
 
         var settings = await db.CompanySettings.AsNoTracking().FirstOrDefaultAsync(ct)
             ?? throw new ConflictAppException("Company settings have not been configured.");
 
         var itemIds = request.Lines.Select(l => l.ItemId).Distinct().ToList();
         var items = await db.Items.Where(i => itemIds.Contains(i.Id)).ToDictionaryAsync(i => i.Id, ct);
+
+        var vendorBrandIds = await db.VendorBrands.Where(vb => vb.SupplierId == supplier.Id).Select(vb => vb.BrandId).ToHashSetAsync(ct);
 
         var lines = new List<PurchaseOrderLine>();
         decimal subtotal = 0, taxTotal = 0;
@@ -91,6 +100,15 @@ public class PurchaseOrdersController(
         {
             if (!items.TryGetValue(lineRequest.ItemId, out var item))
                 throw new NotFoundAppException(nameof(Item), lineRequest.ItemId);
+
+            if (item.CategoryId != category.Id)
+                throw new ValidationAppException($"Item '{item.Name}' does not belong to the selected category '{category.Name}'.");
+
+            if (item.BrandId is null)
+                throw new ValidationAppException($"Item '{item.Name}' has no Brand assigned — a Brand linked to the selected supplier is required for purchase orders.");
+
+            if (!vendorBrandIds.Contains(item.BrandId.Value))
+                throw new ValidationAppException($"Item '{item.Name}''s brand is not linked to supplier '{supplier.Name}'. Link the brand to this vendor before ordering it.");
 
             if (lineRequest.QuantityOrdered <= 0) throw new ValidationAppException("Quantity ordered must be greater than zero.");
 
@@ -119,6 +137,7 @@ public class PurchaseOrdersController(
             PoNumber = await documentNumbers.NextNumberAsync("purchase_order", "PO", ct),
             FinancialYear = documentNumbers.CurrentFinancialYear(),
             SupplierId = supplier.Id,
+            CategoryId = category.Id,
             Status = PurchaseOrderStatus.Draft,
             PaymentStatus = PurchasePaymentStatus.Processing,
             Subtotal = subtotal,
@@ -329,7 +348,7 @@ public class PurchaseOrdersController(
     }
 
     private static PurchaseOrderDto ToDto(PurchaseOrder o) => new(
-        o.Id, o.PoNumber, o.SupplierId, o.Status, o.PaymentStatus, o.DueDate, o.BalancePaymentStatus, o.OutstandingTotal, o.Subtotal, o.TaxTotal, o.GrandTotal,
+        o.Id, o.PoNumber, o.SupplierId, o.CategoryId, o.Status, o.PaymentStatus, o.DueDate, o.BalancePaymentStatus, o.OutstandingTotal, o.Subtotal, o.TaxTotal, o.GrandTotal,
         o.Lines.Select(l => new PurchaseOrderLineDto(l.Id, l.ItemId, l.QuantityOrdered, l.QuantityReceived, l.Rate, l.TaxRatePercent, l.CgstAmount, l.SgstAmount, l.IgstAmount, l.LineTotal)).ToList(),
         o.Payments.Select(p => new PurchasePaymentDto(p.Id, p.PurchaseOrderId, p.Amount, p.Status, p.PaymentMethod)).ToList(),
         o.CreatedAt, o.CreatedBy);

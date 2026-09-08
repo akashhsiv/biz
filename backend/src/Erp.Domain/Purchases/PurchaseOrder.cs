@@ -14,6 +14,11 @@ public class PurchaseOrder : BaseEntity, IShopScoped
     public Guid SupplierId { get; set; }
     public Supplier Supplier { get; set; } = default!;
 
+    /// <summary>The category (Paint, Iron, Plumbing, etc.) this PO is placed under, chosen at creation.
+    /// Every line's Item must belong to this same category — see PurchaseOrdersController.Create.</summary>
+    public Guid CategoryId { get; set; }
+    public ItemCategory Category { get; set; } = default!;
+
     public PurchaseOrderStatus Status { get; set; } = PurchaseOrderStatus.Draft;
 
     /// <summary>Optional payment due date, used by NotificationCheckWorker's daily sweep to raise a

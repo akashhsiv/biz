@@ -11,6 +11,8 @@ public class Item : BaseEntity, IShopScoped
     public string Name { get; set; } = default!;
     public Guid? CategoryId { get; set; }
     public ItemCategory? Category { get; set; }
+    public Guid? BrandId { get; set; }
+    public Brand? Brand { get; set; }
     public string Unit { get; set; } = default!;
     public ItemKind ItemKind { get; set; }
     public decimal PurchasePrice { get; set; }

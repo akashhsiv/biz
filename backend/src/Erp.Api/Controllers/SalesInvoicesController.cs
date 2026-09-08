@@ -21,14 +21,14 @@ public record DocumentLineRequest(Guid? ItemId, string Description, decimal Quan
 public record DocumentLineDto(Guid Id, Guid? ItemId, string Description, decimal Quantity, decimal Rate, decimal Discount, decimal TaxRatePercent, decimal Cgst, decimal Sgst, decimal Igst, decimal LineTotal, List<string>? SerialNumbers = null, string? HsnCode = null);
 
 public record SalesInvoiceDto(
-    Guid Id, string InvoiceNumber, Guid CustomerId, SalesInvoiceSourceType SourceType, SalesInvoiceStatus Status,
+    Guid Id, string InvoiceNumber, Guid CustomerId, Guid CategoryId, SalesInvoiceSourceType SourceType, SalesInvoiceStatus Status,
     decimal Subtotal, decimal OverallDiscountAmount, decimal TaxTotal, decimal GrandTotal, decimal DepositAllocatedTotal,
     DateTime? DueDate, decimal OutstandingTotal, DocumentPaymentStatus PaymentStatus,
     List<DocumentLineDto> Lines, string? CancellationReason, string? PlaceOfSupply, DateTime CreatedAt, Guid CreatedBy);
 
 public record CancelSalesInvoiceRequest(string Reason);
 
-public record CreateSalesInvoiceRequest(Guid CustomerId, List<DocumentLineRequest> Lines, DiscountType? OverallDiscountType, decimal OverallDiscountValue, DateTime? DueDate, string? Notes = null, string? PlaceOfSupply = null, decimal PaidAmount = 0m);
+public record CreateSalesInvoiceRequest(Guid CustomerId, Guid CategoryId, List<DocumentLineRequest> Lines, DiscountType? OverallDiscountType, decimal OverallDiscountValue, DateTime? DueDate, string? Notes = null, string? PlaceOfSupply = null, decimal PaidAmount = 0m);
 
 [ApiController]
 [Route("api/sales-invoices")]
@@ -62,6 +62,14 @@ public class SalesInvoicesController(
         var customer = await db.Customers.FirstOrDefaultAsync(c => c.Id == request.CustomerId && c.IsActive, ct)
             ?? throw new NotFoundAppException(nameof(Customer), request.CustomerId);
 
+        // Explicit clear error rather than a generic 404 for a cross-shop id — db.ItemCategories is
+        // already shop-filtered by ErpDbContext's global query filter, so an id from another shop
+        // simply won't be found here.
+        var category = await db.ItemCategories.FirstOrDefaultAsync(c => c.Id == request.CategoryId && c.IsActive, ct)
+            ?? throw new NotFoundAppException(nameof(ItemCategory), request.CategoryId);
+
+        await ValidateLineCategoriesAsync(request.Lines, category, ct);
+
         var shopState = await GetShopStateAsync(ct);
         var totals = await CalculateAsync(request.Lines, shopState, customer.GstState, request.OverallDiscountType, request.OverallDiscountValue, ct);
 
@@ -76,6 +84,7 @@ public class SalesInvoicesController(
             SourceType = SalesInvoiceSourceType.Direct,
             SourceId = Guid.Empty,
             CustomerId = customer.Id,
+            CategoryId = category.Id,
             Status = SalesInvoiceStatus.Active,
             Subtotal = totals.Subtotal,
             OverallDiscountType = request.OverallDiscountType,
@@ -109,6 +118,27 @@ public class SalesInvoicesController(
         await idempotency.StoreAsync(key, endpoint, hash, StatusCodes.Status200OK, responseJson, ct);
 
         return Ok(dto);
+    }
+
+    /// <summary>Every line with an Item must belong to the invoice's chosen category and to this shop —
+    /// db.Items is already shop-filtered by ErpDbContext's global query filter, so an item id from
+    /// another shop simply isn't found, which we surface with an explicit message rather than letting a
+    /// later AsNoTracking().FirstAsync elsewhere throw an opaque InvalidOperationException.</summary>
+    private async Task ValidateLineCategoriesAsync(List<DocumentLineRequest> lines, ItemCategory category, CancellationToken ct)
+    {
+        var itemIds = lines.Where(l => l.ItemId is not null).Select(l => l.ItemId!.Value).Distinct().ToList();
+        if (itemIds.Count == 0) return;
+
+        var items = await db.Items.Where(i => itemIds.Contains(i.Id)).ToDictionaryAsync(i => i.Id, ct);
+
+        foreach (var itemId in itemIds)
+        {
+            if (!items.TryGetValue(itemId, out var item))
+                throw new NotFoundAppException(nameof(Item), itemId);
+
+            if (item.CategoryId != category.Id)
+                throw new ValidationAppException($"Item '{item.Name}' does not belong to the selected category '{category.Name}'.");
+        }
     }
 
     private async Task DeductStockForLinesAsync(IEnumerable<Erp.Domain.Sales.DocumentLineBase> lines, DocumentReferenceType refType, Guid refId, CancellationToken ct)
@@ -266,7 +296,7 @@ public class SalesInvoicesController(
     }
 
     private static SalesInvoiceDto ToDto(SalesInvoice i) => new(
-        i.Id, i.InvoiceNumber, i.CustomerId, i.SourceType, i.Status, i.Subtotal, i.OverallDiscountAmount, i.TaxTotal, i.GrandTotal, i.DepositAllocatedTotal,
+        i.Id, i.InvoiceNumber, i.CustomerId, i.CategoryId, i.SourceType, i.Status, i.Subtotal, i.OverallDiscountAmount, i.TaxTotal, i.GrandTotal, i.DepositAllocatedTotal,
         i.DueDate, i.OutstandingTotal, i.PaymentStatus,
         i.Lines.Select(l => new DocumentLineDto(l.Id, l.ItemId, l.Description, l.Quantity, l.Rate, l.Discount, l.TaxRatePercent, l.CgstAmount, l.SgstAmount, l.IgstAmount, l.LineTotal, Erp.Api.Common.SerialNumbersCsv.Parse(l.SerialNumbersCsv), l.HsnCode)).ToList(),
         i.CancellationReason, i.PlaceOfSupply, i.CreatedAt, i.CreatedBy);
