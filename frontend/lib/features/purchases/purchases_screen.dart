@@ -82,7 +82,6 @@ class _SuppliersTabState extends ConsumerState<_SuppliersTab> {
     void openCreate() => showDialog(context: context, builder: (_) => const _CreateSupplierDialog());
 
     return ListScreenShortcuts(
-      tabIndex: 1,
       onRefresh: () => ref.invalidate(suppliersProvider),
       onNew: openCreate,
       child: Scaffold(
