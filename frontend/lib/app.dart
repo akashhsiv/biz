@@ -8,7 +8,6 @@ import 'core/shortcuts/global_shortcuts_listener.dart';
 import 'core/theme/app_theme.dart';
 import 'features/admin/super_admin_dashboard_screen.dart';
 import 'features/auth/login_screen.dart';
-import 'features/categories/categories_provider.dart';
 import 'features/categories/category_workspace_screen.dart';
 import 'features/commission/commission_screen.dart';
 import 'features/customers/customers_screen.dart';
@@ -63,23 +62,6 @@ class BizApp extends ConsumerWidget {
       // previous session skips straight past this branch (still fine to lazily re-validate later).
       home = const ShopGate();
     } else {
-      // One sidebar entry per active Item Category (always includes the auto-seeded "Cash Bill"
-      // category plus whatever the Shop Admin has created) — replaces the old flat "Purchases"/
-      // "Sales Invoices" entries. While categories are still loading/unavailable, this simply
-      // contributes no extra nav items yet rather than a placeholder — mirrors how the rest of
-      // this list is built eagerly with no other provider-dependent item today.
-      final categoriesAsync = ref.watch(categoriesProvider);
-      // No single required permission — like Reports below, each tab (Purchase List, Sales List)
-      // enforces its own permission on the backend, and a role with only one of
-      // purchase_orders.manage/sales_invoices.manage should still see this category entry.
-      final categoryNavItems = (categoriesAsync.valueOrNull ?? const [])
-          .map((category) => NavItem(
-                label: category.name,
-                icon: Icons.category_outlined,
-                builder: (_) => CategoryWorkspaceScreen(category: category),
-              ))
-          .toList();
-
       home = AppShell(items: [
         NavItem(label: 'Dashboard', icon: Icons.dashboard_outlined, builder: (_) => const DashboardScreen()),
         NavItem(
@@ -88,7 +70,16 @@ class BizApp extends ConsumerWidget {
           requiredPermission: Permissions.customersView,
           builder: (_) => const CustomersScreen(),
         ),
-        ...categoryNavItems,
+        // A single nav entry covering every Category — a dropdown inside switches between them
+        // (see SalesHubScreen) instead of one sidebar row per category, which got unwieldy once a
+        // shop had more than a couple. No single required permission — like Reports below, each
+        // tab (Purchase List, Sales List) enforces its own permission on the backend, and a role
+        // with only one of purchase_orders.manage/sales_invoices.manage should still see this entry.
+        NavItem(
+          label: 'Sales',
+          icon: Icons.point_of_sale_outlined,
+          builder: (_) => const SalesHubScreen(),
+        ),
         NavItem(
           label: 'Returns',
           icon: Icons.assignment_return_outlined,

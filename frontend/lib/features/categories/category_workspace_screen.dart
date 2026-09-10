@@ -8,13 +8,75 @@ import '../sales/sales_invoices_screen.dart';
 import 'categories_provider.dart';
 import 'category_model.dart';
 
-/// Opened from a Category's sidebar entry (see app.dart, which builds one NavItem per active
-/// ItemCategory) — two tabs scoped to this category: the Purchase List (POs whose CategoryId is
-/// this one) and the Sales List (invoices whose CategoryId is this one), each with its own filter
-/// bar and "+ New" action.
+/// Single top-level nav entry (see app.dart) covering every Category — a dropdown here switches
+/// between them instead of each Category getting its own sidebar row, which got unwieldy once a
+/// shop had more than a couple. Keeps the same per-category Purchase List / Sales List tabs.
+class SalesHubScreen extends ConsumerStatefulWidget {
+  const SalesHubScreen({super.key});
+
+  @override
+  ConsumerState<SalesHubScreen> createState() => _SalesHubScreenState();
+}
+
+class _SalesHubScreenState extends ConsumerState<SalesHubScreen> {
+  String? _selectedCategoryId;
+
+  @override
+  Widget build(BuildContext context) {
+    final categoriesAsync = ref.watch(categoriesProvider);
+
+    return Scaffold(
+      backgroundColor: AppPalette.surface,
+      body: categoriesAsync.when(
+        data: (categories) {
+          if (categories.isEmpty) {
+            return Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('No categories yet.'),
+                  const SizedBox(height: 12),
+                  FilledButton.icon(
+                    icon: const Icon(Icons.add),
+                    label: const Text('Create a Category'),
+                    onPressed: () => showDialog(context: context, builder: (_) => const ManageCategoriesDialog()),
+                  ),
+                ],
+              ),
+            );
+          }
+
+          final selected = categories.firstWhere(
+            (c) => c.id == _selectedCategoryId,
+            orElse: () => categories.first,
+          );
+
+          return CategoryWorkspaceScreen(
+            key: ValueKey(selected.id),
+            category: selected,
+            categoryPicker: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                value: selected.id,
+                items: categories.map((c) => DropdownMenuItem(value: c.id, child: Text(c.name))).toList(),
+                onChanged: (v) => setState(() => _selectedCategoryId = v),
+              ),
+            ),
+          );
+        },
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (e, _) => Center(child: Text('Failed to load categories: $e')),
+      ),
+    );
+  }
+}
+
+/// The Purchase List / Sales List tabs for one Category — [categoryPicker] replaces the plain
+/// title so the caller (SalesHubScreen) can let the user switch categories in place, but this
+/// widget stays usable standalone too if a plain title is passed instead.
 class CategoryWorkspaceScreen extends StatelessWidget {
   final ItemCategory category;
-  const CategoryWorkspaceScreen({super.key, required this.category});
+  final Widget? categoryPicker;
+  const CategoryWorkspaceScreen({super.key, required this.category, this.categoryPicker});
 
   @override
   Widget build(BuildContext context) {
@@ -30,7 +92,8 @@ class CategoryWorkspaceScreen extends StatelessWidget {
               child: Row(
                 children: [
                   Expanded(
-                    child: Text(category.name, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+                    child: categoryPicker ??
+                        Text(category.name, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
                   ),
                   OutlinedButton.icon(
                     icon: const Icon(Icons.category_outlined, size: 18),
