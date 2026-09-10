@@ -343,11 +343,38 @@ class _WhatsappTemplateField extends StatelessWidget {
   }
 }
 
-class _BackupStatusCard extends ConsumerWidget {
+class _BackupStatusCard extends ConsumerStatefulWidget {
   const _BackupStatusCard();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_BackupStatusCard> createState() => _BackupStatusCardState();
+}
+
+class _BackupStatusCardState extends ConsumerState<_BackupStatusCard> {
+  bool _running = false;
+
+  Future<void> _runBackupNow() async {
+    setState(() => _running = true);
+
+    final api = ref.read(apiClientProvider);
+    final result = await api.post<Map<String, dynamic>>('/api/backups/run', (json) => json as Map<String, dynamic>);
+
+    if (!mounted) return;
+    setState(() => _running = false);
+
+    switch (result) {
+      case ApiSuccess():
+        ref.invalidate(backupStatusProvider);
+        AppToast.success('Backup completed.');
+      case ApiFailure(message: final msg):
+        AppToast.error(msg);
+      case ApiNetworkError(message: final msg):
+        AppToast.error('Could not reach the Host: $msg');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final backupAsync = ref.watch(backupStatusProvider);
 
     return Card(
@@ -360,7 +387,14 @@ class _BackupStatusCard extends ConsumerWidget {
               children: [
                 const Icon(Icons.backup_outlined, size: 18, color: AppPalette.primary),
                 const SizedBox(width: 8),
-                Text('Backup & Database', style: Theme.of(context).textTheme.titleMedium),
+                Expanded(child: Text('Backup & Database', style: Theme.of(context).textTheme.titleMedium)),
+                OutlinedButton.icon(
+                  onPressed: _running ? null : _runBackupNow,
+                  icon: _running
+                      ? const SizedBox(height: 14, width: 14, child: CircularProgressIndicator(strokeWidth: 2))
+                      : const Icon(Icons.play_arrow, size: 16),
+                  label: Text(_running ? 'Running...' : 'Run Backup Now'),
+                ),
               ],
             ),
             const SizedBox(height: 12),

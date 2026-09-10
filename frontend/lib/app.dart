@@ -10,9 +10,6 @@ import 'features/admin/super_admin_dashboard_screen.dart';
 import 'features/auth/login_screen.dart';
 import 'features/categories/categories_provider.dart';
 import 'features/categories/category_workspace_screen.dart';
-import 'features/connection/connection_controller.dart';
-import 'features/connection/connection_state.dart';
-import 'features/connection/connection_screen.dart';
 import 'features/commission/commission_screen.dart';
 import 'features/customers/customers_screen.dart';
 import 'features/dashboard/dashboard_screen.dart';
@@ -26,7 +23,9 @@ import 'features/reports/reports_screen.dart';
 import 'features/returns/sales_returns_screen.dart';
 import 'features/settings/company_settings_screen.dart';
 import 'features/settings/notification_settings_screen.dart';
+import 'features/settings/return_policies_screen.dart';
 import 'features/settings/shop_configuration_screen.dart';
+import 'features/settings/tax_groups_screen.dart';
 import 'features/shops/shop_gate.dart';
 import 'features/staff/staff_screen.dart';
 import 'features/shops/shops_provider.dart';
@@ -45,26 +44,14 @@ class ErpApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final connection = ref.watch(connectionControllerProvider);
     final auth = ref.watch(authControllerProvider);
 
-    // A cached token/profile has no per-Host scoping - re-validate it against whichever Host we
-    // just confirmed a connection to, so a stale/wrong-Host session doesn't optimistically show
-    // Home (see AuthController.validateSession).
-    ref.listen(connectionControllerProvider, (previous, next) {
-      if (next.status == ConnectionStatus.connected && previous?.status != ConnectionStatus.connected) {
-        ref.read(authControllerProvider.notifier).validateSession();
-      }
-    });
+    // Session validation against the (now fixed) backend happens once at startup instead - see
+    // _Bootstrap in main.dart, which calls AuthController.validateSession() right after
+    // restoreFromCache() rather than waiting on a connection-status transition that no longer exists.
 
     Widget home;
-    // The connection screen is only for the very first connect - once a session has connected at
-    // least once, any later blip (a 20s health-check poll, or a real drop) is shown as a banner
-    // inside the app (ConnectivityBanner) instead of tearing the whole app down and back up, which
-    // was resetting AppShell's selected tab to Dashboard on every single poll.
-    if (!connection.hasEverConnected && connection.status != ConnectionStatus.connected) {
-      home = const ConnectionScreen();
-    } else if (!auth.isAuthenticated) {
+    if (!auth.isAuthenticated) {
       home = const LoginScreen();
     } else if (auth.isSuperAdmin) {
       // A super admin has no shop-scoped UserShopRole in general, so the normal shop-selection
@@ -109,6 +96,12 @@ class ErpApp extends ConsumerWidget {
           builder: (_) => const SalesReturnsScreen(),
         ),
         NavItem(
+          label: 'Return Policies',
+          icon: Icons.rule_folder_outlined,
+          requiredPermission: Permissions.returnPoliciesManage,
+          builder: (_) => const ReturnPoliciesScreen(),
+        ),
+        NavItem(
           label: 'Suppliers',
           icon: Icons.local_shipping_outlined,
           requiredPermission: Permissions.purchaseOrdersManage,
@@ -119,6 +112,12 @@ class ErpApp extends ConsumerWidget {
           icon: Icons.inventory_2_outlined,
           requiredPermission: Permissions.itemsView,
           builder: (_) => const ItemsScreen(),
+        ),
+        NavItem(
+          label: 'Tax Groups',
+          icon: Icons.percent_outlined,
+          requiredPermission: Permissions.itemsView,
+          builder: (_) => const TaxGroupsScreen(),
         ),
         NavItem(
           label: 'Stock',
@@ -204,7 +203,7 @@ class ErpApp extends ConsumerWidget {
 
     // Once AppShell is showing, its own TopStatusBar folds in the window drag/minimize/maximize/
     // close controls and clock that CustomTitleBar otherwise provides (confirmed decision) - having
-    // both would show two title-bar-ish strips stacked on top of each other. Connection/Login have
+    // both would show two title-bar-ish strips stacked on top of each other. Login/ShopGate have
     // no such bar of their own, so they still get the standalone CustomTitleBar.
     final showCustomTitleBar = home is! AppShell && isDesktopWindowed;
 
