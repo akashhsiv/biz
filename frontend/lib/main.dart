@@ -27,7 +27,7 @@ Future<void> _initWindowAndRun() async {
   // (Platform.isWindows today) so a mobile build doesn't crash on startup calling into a platform
   // channel nothing registered.
   if (isDesktopWindowed) {
-    // Frameless window (confirmed decision 2026-08-28) - CustomTitleBar (mounted in _Bootstrap/ErpApp
+    // Frameless window (confirmed decision 2026-08-28) - CustomTitleBar (mounted in _Bootstrap/BizApp
     // below) replaces the native title bar entirely with its own draggable/sidebar-themed one.
     await windowManager.ensureInitialized();
     // Below this, the sidebar + master-detail/table layouts start clipping and overlapping rather
@@ -85,6 +85,6 @@ class _BootstrapState extends ConsumerState<_Bootstrap> {
         home: const Scaffold(body: Center(child: CircularProgressIndicator())),
       );
     }
-    return const ErpApp();
+    return const BizApp();
   }
 }

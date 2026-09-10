@@ -282,7 +282,7 @@ class _BrandingHeader extends ConsumerWidget {
     final logoAsync = ref.watch(companyLogoBytesProvider);
 
     final settings = settingsAsync.valueOrNull;
-    final shopName = settings?.shopName ?? 'ERP';
+    final shopName = settings?.shopName ?? 'Biz';
     final gstin = settings?.gstin;
     final logoBytes = logoAsync.valueOrNull;
 

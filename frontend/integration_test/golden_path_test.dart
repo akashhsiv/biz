@@ -46,7 +46,7 @@ void main() {
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
 
-    await tester.pumpWidget(const ProviderScope(child: ErpApp()));
+    await tester.pumpWidget(const ProviderScope(child: BizApp()));
     await tester.pumpAndSettle(const Duration(seconds: 2));
 
     // If a Host URL was saved from a previous run, we might already be past the connection

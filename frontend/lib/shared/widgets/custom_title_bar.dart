@@ -11,7 +11,7 @@ import '../../core/theme/app_theme.dart';
 /// with its own minimize/maximize/close controls and a live clock. Mounted once at the app root (see
 /// app.dart/main.dart) above every screen and dialog, so the window is always controllable even
 /// before login/connection. Wrapped in its own transparent Material so IconButton ink effects work
-/// without needing a MaterialApp ancestor - this sits above ErpApp's MaterialApp in the widget tree.
+/// without needing a MaterialApp ancestor - this sits above BizApp's MaterialApp in the widget tree.
 class CustomTitleBar extends StatefulWidget {
   const CustomTitleBar({super.key});
 
@@ -72,7 +72,7 @@ class _CustomTitleBarState extends State<CustomTitleBar> with WindowListener {
             const SizedBox(width: 12),
             const Icon(Icons.storefront, size: 15, color: Colors.white),
             const SizedBox(width: 8),
-            Text('ERP', style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
+            Text('Biz', style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
             Expanded(
               child: DragToMoveArea(
                 child: Container(

@@ -8,7 +8,7 @@ void main() {
   testWidgets('shows the connection screen when no Host is configured', (WidgetTester tester) async {
     SharedPreferences.setMockInitialValues({});
 
-    await tester.pumpWidget(const ProviderScope(child: ErpApp()));
+    await tester.pumpWidget(const ProviderScope(child: BizApp()));
     await tester.pumpAndSettle();
 
     expect(find.text('Host Connection Required'), findsOneWidget);

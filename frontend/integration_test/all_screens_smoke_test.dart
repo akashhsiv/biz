@@ -22,7 +22,7 @@ void main() {
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
 
-    await tester.pumpWidget(const ProviderScope(child: ErpApp()));
+    await tester.pumpWidget(const ProviderScope(child: BizApp()));
     await tester.pumpAndSettle(const Duration(seconds: 2));
 
     if (find.text('Host Connection Required').evaluate().isNotEmpty) {

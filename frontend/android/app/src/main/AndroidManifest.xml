@@ -1,12 +1,12 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- The app talks to the Erp.Api Host over plain HTTP on the local network (see ApiClient/
-         ConnectionScreen) - without INTERNET this build can't reach it at all, and cleartext HTTP
-         (usesCleartextTraffic below) is required since the Host isn't typically served over TLS. -->
+    <!-- The app talks to the cloud backend over plain HTTP (see ApiClient/backend_config.dart) -
+         without INTERNET this build can't reach it at all, and cleartext HTTP
+         (usesCleartextTraffic below) is required since the backend isn't served over TLS yet. -->
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
     <application
         android:usesCleartextTraffic="true"
-        android:label="erp_client"
+        android:label="Biz"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

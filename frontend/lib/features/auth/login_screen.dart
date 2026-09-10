@@ -55,7 +55,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               children: [
                 Icon(Icons.storefront_outlined, size: 56, color: Theme.of(context).colorScheme.primary),
                 const SizedBox(height: 12),
-                Text('ERP', style: Theme.of(context).textTheme.headlineSmall, textAlign: TextAlign.center),
+                Text('Biz', style: Theme.of(context).textTheme.headlineSmall, textAlign: TextAlign.center),
                 const SizedBox(height: 24),
                 TextField(
                   controller: _username,

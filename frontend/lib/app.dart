@@ -39,8 +39,8 @@ import 'shared/widgets/overlay_host.dart';
 import 'shared/widgets/app_toast.dart';
 import 'shared/widgets/nav_item.dart';
 
-class ErpApp extends ConsumerWidget {
-  const ErpApp({super.key});
+class BizApp extends ConsumerWidget {
+  const BizApp({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -209,7 +209,7 @@ class ErpApp extends ConsumerWidget {
 
     return MaterialApp(
       navigatorKey: appNavigatorKey,
-      title: 'ERP',
+      title: 'Biz',
       theme: appTheme,
       // Wraps the whole app including the Navigator's overlay, so this reaches dialogs too - most
       // forms in this app (create-customer, create-item, etc.) are shown via showDialog, which

@@ -252,7 +252,7 @@ class _TestMessageCard extends ConsumerStatefulWidget {
 
 class _TestMessageCardState extends ConsumerState<_TestMessageCard> {
   final _number = TextEditingController();
-  final _message = TextEditingController(text: 'This is a test message from the ERP system.');
+  final _message = TextEditingController(text: 'This is a test message from the Biz system.');
   bool _sending = false;
   String? _result;
   bool _resultSuccess = false;
