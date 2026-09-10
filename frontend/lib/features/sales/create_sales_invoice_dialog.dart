@@ -289,7 +289,10 @@ class _SiLineRow extends StatelessWidget {
               label: 'Item (optional)',
               value: line.itemId,
               items: items.map((it) => it.id).toList(),
-              itemLabel: (id) => items.firstWhere((it) => it.id == id).name,
+              itemLabel: (id) {
+                final item = items.firstWhere((it) => it.id == id);
+                return item.brandName != null ? '${item.name} — ${item.brandName}' : item.name;
+              },
               itemSecondaryLabel: (id) => items.firstWhere((it) => it.id == id).sku,
               onChanged: (v) {
                 line.itemId = v;

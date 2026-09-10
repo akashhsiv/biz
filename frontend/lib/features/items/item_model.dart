@@ -5,7 +5,9 @@ class Item {
   final String sku;
   final String name;
   final String? categoryId;
+  final String? categoryName;
   final String? brandId;
+  final String? brandName;
   final String unit;
   final ItemKind itemKind;
   final double purchasePrice;
@@ -22,7 +24,9 @@ class Item {
     required this.sku,
     required this.name,
     this.categoryId,
+    this.categoryName,
     this.brandId,
+    this.brandName,
     required this.unit,
     required this.itemKind,
     required this.purchasePrice,
@@ -40,7 +44,9 @@ class Item {
         sku: json['sku'] as String,
         name: json['name'] as String,
         categoryId: json['categoryId'] as String?,
+        categoryName: json['categoryName'] as String?,
         brandId: json['brandId'] as String?,
+        brandName: json['brandName'] as String?,
         unit: json['unit'] as String,
         itemKind: ItemKind.values[json['itemKind'] as int],
         purchasePrice: (json['purchasePrice'] as num).toDouble(),

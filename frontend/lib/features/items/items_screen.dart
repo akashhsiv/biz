@@ -88,6 +88,7 @@ class _ItemsScreenState extends ConsumerState<ItemsScreen> {
                       columns: const [
                         AppListColumn('SKU', flex: 2),
                         AppListColumn('Name', flex: 4),
+                        AppListColumn('Brand', flex: 2),
                         AppListColumn('Unit', flex: 2),
                         AppListColumn('Kind', flex: 2),
                         AppListColumn('Stock', flex: 2),
@@ -104,6 +105,7 @@ class _ItemsScreenState extends ConsumerState<ItemsScreen> {
                         return [
                           Text(it.sku, style: const TextStyle(fontSize: 13)),
                           Text(it.name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                          Text(it.brandName ?? '—', style: const TextStyle(color: AppPalette.textSecondary, fontSize: 13)),
                           Text(it.unit, style: const TextStyle(color: AppPalette.textSecondary, fontSize: 13)),
                           Text(it.itemKind == ItemKind.stock ? 'Stock' : 'Non-Stock', style: const TextStyle(color: AppPalette.textSecondary, fontSize: 13)),
                           it.itemKind == ItemKind.stock
@@ -124,7 +126,7 @@ class _ItemsScreenState extends ConsumerState<ItemsScreen> {
                       },
                     );
                   },
-                  loading: () => Card(child: SkeletonTableRows(columns: 7)),
+                  loading: () => Card(child: SkeletonTableRows(columns: 8)),
                   error: (e, _) => Center(child: Text('Failed to load items: $e')),
                 ),
               ),

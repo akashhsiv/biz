@@ -11,7 +11,8 @@ namespace Erp.Api.Controllers;
 
 public record ItemDto(
     Guid Id, string Sku, string Name, Guid? CategoryId, Guid? BrandId, string Unit, ItemKind ItemKind,
-    decimal PurchasePrice, decimal SellingPrice, decimal TaxRatePercent, string? HsnCode, bool IsBatchTracked, bool IsSerialTracked, bool IsActive, decimal StockOnHand, decimal? MinimumStock, bool HasImage);
+    decimal PurchasePrice, decimal SellingPrice, decimal TaxRatePercent, string? HsnCode, bool IsBatchTracked, bool IsSerialTracked, bool IsActive, decimal StockOnHand, decimal? MinimumStock, bool HasImage,
+    string? BrandName, string? CategoryName);
 
 public record UpsertItemRequest(
     string Sku, string Name, Guid? CategoryId, string Unit, ItemKind ItemKind,
@@ -29,7 +30,7 @@ public class ItemsController(ErpDbContext db, IAuditService audit) : ControllerB
     [RequirePermission(PermissionKeys.ItemsView)]
     public async Task<ActionResult<List<ItemDto>>> List([FromQuery] bool includeInactive, [FromQuery] Guid? categoryId, [FromQuery] Guid? brandId, CancellationToken ct)
     {
-        var query = db.Items.Include(i => i.StockBalance).AsQueryable();
+        var query = db.Items.Include(i => i.StockBalance).Include(i => i.Brand).Include(i => i.Category).AsQueryable();
         if (!includeInactive) query = query.Where(i => i.IsActive);
         if (categoryId is { } catId) query = query.Where(i => i.CategoryId == catId);
         if (brandId is { } bId) query = query.Where(i => i.BrandId == bId);
@@ -42,7 +43,7 @@ public class ItemsController(ErpDbContext db, IAuditService audit) : ControllerB
     [RequirePermission(PermissionKeys.ItemsView)]
     public async Task<ActionResult<ItemDto>> Get(Guid id, CancellationToken ct)
     {
-        var item = await db.Items.Include(i => i.StockBalance).FirstOrDefaultAsync(i => i.Id == id, ct)
+        var item = await db.Items.Include(i => i.StockBalance).Include(i => i.Brand).Include(i => i.Category).FirstOrDefaultAsync(i => i.Id == id, ct)
             ?? throw new NotFoundAppException(nameof(Item), id);
 
         return Ok(ToDto(item));
@@ -134,6 +135,9 @@ public class ItemsController(ErpDbContext db, IAuditService audit) : ControllerB
         await audit.LogAsync("item.created", nameof(Item), item.Id, newValue: request, ct: ct);
         await db.SaveChangesAsync(ct);
 
+        await db.Entry(item).Reference(i => i.Brand).LoadAsync(ct);
+        await db.Entry(item).Reference(i => i.Category).LoadAsync(ct);
+
         return Ok(ToDto(item));
     }
 
@@ -141,7 +145,7 @@ public class ItemsController(ErpDbContext db, IAuditService audit) : ControllerB
     [RequirePermission(PermissionKeys.ItemsManage)]
     public async Task<ActionResult<ItemDto>> Update(Guid id, UpsertItemRequest request, CancellationToken ct)
     {
-        var item = await db.Items.Include(i => i.StockBalance).FirstOrDefaultAsync(i => i.Id == id, ct)
+        var item = await db.Items.Include(i => i.StockBalance).Include(i => i.Brand).Include(i => i.Category).FirstOrDefaultAsync(i => i.Id == id, ct)
             ?? throw new NotFoundAppException(nameof(Item), id);
 
         if (item.ItemKind != request.ItemKind)
@@ -165,10 +169,15 @@ public class ItemsController(ErpDbContext db, IAuditService audit) : ControllerB
         item.IsSerialTracked = request.IsSerialTracked;
         item.MinimumStock = request.MinimumStock;
 
-        await audit.LogAsync("item.updated", nameof(Item), item.Id, oldValue, ToDto(item), ct: ct);
         await db.SaveChangesAsync(ct);
 
-        return Ok(ToDto(item));
+        await db.Entry(item).Reference(i => i.Brand).LoadAsync(ct);
+        await db.Entry(item).Reference(i => i.Category).LoadAsync(ct);
+        var newValue = ToDto(item);
+
+        await audit.LogAsync("item.updated", nameof(Item), item.Id, oldValue, newValue, ct: ct);
+
+        return Ok(newValue);
     }
 
     [HttpPost("{id:guid}/deactivate")]
@@ -204,5 +213,6 @@ public class ItemsController(ErpDbContext db, IAuditService audit) : ControllerB
 
     private static ItemDto ToDto(Item i) => new(
         i.Id, i.Sku, i.Name, i.CategoryId, i.BrandId, i.Unit, i.ItemKind, i.PurchasePrice, i.SellingPrice,
-        i.TaxRatePercent, i.HsnCode, i.IsBatchTracked, i.IsSerialTracked, i.IsActive, i.StockBalance?.QuantityOnHand ?? 0, i.MinimumStock, i.Image is not null);
+        i.TaxRatePercent, i.HsnCode, i.IsBatchTracked, i.IsSerialTracked, i.IsActive, i.StockBalance?.QuantityOnHand ?? 0, i.MinimumStock, i.Image is not null,
+        i.Brand?.Name, i.Category?.Name);
 }
