@@ -260,8 +260,11 @@ class _RankingBarChart extends StatelessWidget {
     final top = entries.take(8).toList();
     final maxValue = top.map((e) => e.$2).fold<double>(0, (a, b) => a > b ? a : b);
 
+    // +96 accounts for the rotated bottom-axis labels' reservedSize below - omitting it made the
+    // outer box shorter than the chart actually needs, overflowing by exactly that much whenever
+    // there were few enough bars for the bar area alone to undercut the label space.
     return SizedBox(
-      height: 32.0 * top.length + 16,
+      height: 32.0 * top.length + 16 + 96,
       child: BarChart(
         BarChartData(
           alignment: BarChartAlignment.spaceAround,
