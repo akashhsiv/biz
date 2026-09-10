@@ -18,6 +18,7 @@ import '../../shared/widgets/pdf_button.dart';
 import '../../shared/widgets/reason_dialog.dart';
 import '../../shared/widgets/searchable_dropdown.dart';
 import '../../shared/widgets/skeleton_loader.dart';
+import '../categories/categories_provider.dart';
 import '../items/brands_provider.dart';
 import '../items/item_model.dart';
 import '../items/items_provider.dart';
@@ -110,6 +111,7 @@ class _SuppliersTabState extends ConsumerState<_SuppliersTab> {
                       AppListColumn('GST Number', flex: 2),
                       AppListColumn('Contact', flex: 2),
                       AppListColumn('Brands', flex: 2),
+                      AppListColumn('Categories', flex: 2),
                     ],
                     itemCount: suppliers.length,
                     itemsPerPage: _pageSize,
@@ -126,10 +128,11 @@ class _SuppliersTabState extends ConsumerState<_SuppliersTab> {
                           onPressed: () => showDialog(context: context, builder: (_) => ManageVendorBrandsDialog(supplier: s)),
                           child: const Text('Manage'),
                         ),
+                        _SupplierCategoriesCell(supplierId: s.id),
                       ];
                     },
                   ),
-                  loading: () => Card(child: SkeletonTableRows(columns: 4)),
+                  loading: () => Card(child: SkeletonTableRows(columns: 5)),
                   error: (e, _) => Center(child: Text('Failed to load suppliers: $e')),
                 ),
               ),
@@ -138,6 +141,41 @@ class _SuppliersTabState extends ConsumerState<_SuppliersTab> {
         ),
       ),
     );
+  }
+}
+
+/// Shows the distinct product Categories a Supplier serves, derived from the Brands it's linked
+/// to supply (each Brand belongs to exactly one Category) — there's no direct Supplier→Category
+/// link on the backend, so this is resolved client-side rather than adding a new endpoint/field.
+class _SupplierCategoriesCell extends ConsumerWidget {
+  final String supplierId;
+  const _SupplierCategoriesCell({required this.supplierId});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final vendorBrands = ref.watch(vendorBrandsProvider(supplierId)).valueOrNull;
+    final categories = ref.watch(categoriesProvider).valueOrNull;
+
+    if (vendorBrands == null || categories == null) {
+      return const SizedBox(
+        width: 14,
+        height: 14,
+        child: CircularProgressIndicator(strokeWidth: 2),
+      );
+    }
+
+    if (vendorBrands.isEmpty) {
+      return const Text('-', style: TextStyle(color: AppPalette.textSecondary, fontSize: 13));
+    }
+
+    final categoryNames = <String>{};
+    for (final vb in vendorBrands) {
+      final match = categories.where((c) => c.id == vb.categoryId).firstOrNull;
+      if (match != null) categoryNames.add(match.name);
+    }
+
+    final text = categoryNames.isEmpty ? '-' : categoryNames.join(', ');
+    return Text(text, style: const TextStyle(color: AppPalette.textSecondary, fontSize: 13), overflow: TextOverflow.ellipsis);
   }
 }
 
