@@ -4,8 +4,10 @@ import 'package:window_manager/window_manager.dart';
 
 import 'app.dart';
 import 'core/auth/auth_controller.dart';
+import 'core/constants/backend_config.dart';
 import 'core/logging/file_logger.dart';
 import 'core/platform/desktop_window.dart';
+import 'core/providers.dart';
 import 'features/shops/shops_provider.dart';
 import 'shared/widgets/custom_title_bar.dart';
 import 'shared/widgets/overlay_host.dart';
@@ -58,8 +60,15 @@ class _BootstrapState extends ConsumerState<_Bootstrap> {
   @override
   void initState() {
     super.initState();
+    // The backend is a single fixed cloud address now (no more per-install LAN Host to type or
+    // auto-discover) - set it once, unconditionally, before anything else touches the API client.
+    ref.read(apiClientProvider).setBaseUrl(kBackendBaseUrl);
     ref.read(authControllerProvider.notifier).restoreFromCache().then((_) async {
       await ref.read(selectedShopControllerProvider.notifier).restoreFromCache();
+      // Previously only done on ConnectionController's first successful connect (there was no Host
+      // to validate against before that). The backend address is now fixed and always known, so
+      // this is the equivalent hook - validate any cached session once at startup instead.
+      await ref.read(authControllerProvider.notifier).validateSession();
       if (mounted) setState(() => _ready = true);
     });
   }

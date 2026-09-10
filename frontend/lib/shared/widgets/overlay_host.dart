@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 /// sits outside MaterialApp's own Navigator/Overlay. NOT the same as `Overlay(initialEntries:
 /// [OverlayEntry(builder: ...)])` directly - that only reads initialEntries once at creation and
 /// silently ignores it on every later rebuild, so wrapping MaterialApp's `child` (which changes as
-/// the app navigates between ConnectionScreen/LoginScreen/AppShell) that way freezes the UI on
+/// the app navigates between LoginScreen/ShopGate/AppShell) that way freezes the UI on
 /// whatever screen was showing the first time it mounted. This keeps one persistent OverlayEntry
 /// alive and explicitly tells it to rebuild whenever the wrapped child actually changes.
 class OverlayHost extends StatefulWidget {

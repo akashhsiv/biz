@@ -61,7 +61,6 @@ builder.Services.AddSingleton<Erp.Infrastructure.Whatsapp.WhatsappBridgeLocator>
 // service) and only depends on other singleton-safe services (IHttpClientFactory, WhatsappBridgeLocator).
 builder.Services.AddSingleton<Erp.Infrastructure.Whatsapp.WhatsappSenderService>();
 builder.Services.AddHostedService<Erp.Infrastructure.Whatsapp.WhatsappOutboxWorker>();
-builder.Services.AddHostedService<Erp.Infrastructure.Discovery.HostDiscoveryBroadcastService>();
 
 builder.Services
     .AddAuthentication(SessionAuthDefaults.Scheme)

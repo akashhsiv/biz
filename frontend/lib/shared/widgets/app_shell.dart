@@ -9,7 +9,6 @@ import '../../core/shortcuts/nav_shortcuts.dart';
 import '../../core/shortcuts/shortcuts_help_dialog.dart';
 import '../../core/theme/app_theme.dart';
 import '../../features/settings/company_settings_provider.dart';
-import 'connectivity_banner.dart';
 import 'nav_item.dart';
 import 'top_status_bar.dart';
 
@@ -56,7 +55,6 @@ class _AppShellState extends ConsumerState<AppShell> {
     return Scaffold(
       body: Column(
         children: [
-          const ConnectivityBanner(),
           Expanded(
             child: Row(
               children: [

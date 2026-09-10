@@ -9,8 +9,6 @@ import '../../core/auth/auth_controller.dart';
 import '../../core/constants/permissions.dart';
 import '../../core/platform/desktop_window.dart';
 import '../../core/theme/app_theme.dart';
-import '../../features/connection/connection_controller.dart';
-import '../../features/host/host_status_card.dart';
 import '../../features/notifications/notifications_provider.dart';
 import '../../features/notifications/notifications_screen.dart';
 import '../../features/whatsapp/whatsapp_screen.dart';
@@ -69,7 +67,6 @@ class _TopStatusBarState extends ConsumerState<TopStatusBar> with WindowListener
   @override
   Widget build(BuildContext context) {
     final auth = ref.watch(authControllerProvider);
-    final connection = ref.watch(connectionControllerProvider);
 
     return Container(
       height: 52,
@@ -100,10 +97,6 @@ class _TopStatusBarState extends ConsumerState<TopStatusBar> with WindowListener
             ),
           ),
           const SizedBox(width: 20),
-          if (connection.hostUrl != null) ...[
-            _HostAddressChip(hostUrl: connection.hostUrl!, canViewStatus: auth.has(Permissions.hostStatusView)),
-            const SizedBox(width: 20),
-          ],
           _WhatsappStatusChip(canManage: auth.has(Permissions.whatsappManage)),
           const SizedBox(width: 20),
           const _NotificationBellButton(),
@@ -140,42 +133,6 @@ class _TopStatusBarState extends ConsumerState<TopStatusBar> with WindowListener
             const SizedBox(width: 8),
         ],
       ),
-    );
-  }
-}
-
-/// The Host address text, promoted to a button (when the signed-in user can see Host status) that
-/// opens the same [HostStatusCard] previously embedded directly in the Dashboard — a detail view
-/// reachable from anywhere instead of only from that one page.
-class _HostAddressChip extends StatelessWidget {
-  final String hostUrl;
-  final bool canViewStatus;
-
-  const _HostAddressChip({required this.hostUrl, required this.canViewStatus});
-
-  @override
-  Widget build(BuildContext context) {
-    final chip = Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(Icons.lan_outlined, size: 13, color: Colors.white.withValues(alpha: 0.35)),
-        const SizedBox(width: 5),
-        Text(
-          hostUrl.replaceFirst('http://', ''),
-          style: TextStyle(fontSize: 11, color: Colors.white.withValues(alpha: 0.35), fontFamily: 'monospace'),
-        ),
-      ],
-    );
-
-    if (!canViewStatus) return chip;
-
-    return InkWell(
-      borderRadius: BorderRadius.circular(6),
-      onTap: () => showDialog(
-        context: context,
-        builder: (_) => const Dialog(child: SizedBox(width: 440, child: HostStatusCard())),
-      ),
-      child: Padding(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4), child: chip),
     );
   }
 }
